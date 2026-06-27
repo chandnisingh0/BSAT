@@ -1,0 +1,351 @@
+{% extends 'statements/base.html' %}
+{% block title %}Beneficiary Identification - {{ statement.original_filename }}{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f8fafc;
+  }
+  
+  /* Clean Back Navigation Link */
+  .btn-back-custom {
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.85rem;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition: all 0.2s ease;
+  }
+  .btn-back-custom:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+
+  /* Metric Blocks - Clean with Subtle Top Border for Pop */
+  .dashboard-card-custom {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    padding: 1.5rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .card-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background-color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #475569;
+    flex-shrink: 0;
+  }
+  .card-label-custom {
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .card-value-custom {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+  .card-subtext-custom {
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+
+  /* Warning Modifiers */
+  .card-warning-custom {
+    background: #fffdfa;
+    border-color: #fef3c7;
+  }
+  .card-warning-custom .card-icon-wrapper {
+    background-color: #fef3c7;
+    color: #d97706;
+  }
+
+  /* Pill Dashboard Actions (Theme Accurate) */
+  .btn-action-primary {
+    background-color: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  .btn-action-primary:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+  }
+  .btn-action-secondary {
+    background-color: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+  .btn-action-secondary:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+  .btn-action-warning-custom {
+    background-color: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+  .btn-action-warning-custom:hover {
+    background-color: #fef3c7;
+  }
+
+  /* Table Grid */
+  .table-container-custom {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .table-header-custom {
+    background-color: #f8fafc;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .table-custom thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .table-custom tbody td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .badge-type-custom {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  
+  .btn-table-action {
+    font-size: 0.815rem;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 5px 14px;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: #334155;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-table-action:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  /* Steps Framework */
+  .info-panel-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .step-card {
+    padding: 1rem;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    border-top: 3px solid #64748b;
+    height: 100%;
+  }
+</style>
+
+<div class="mb-4">
+  <a href="{% url 'transactions' statement.id %}" class="btn btn-back-custom text-decoration-none d-inline-flex align-items-center gap-2">
+    ← Back to Transactions
+  </a>
+</div>
+
+<div class="mb-4">
+  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">Beneficiary Identification Dashboard</h2>
+  <p class="text-muted small mb-0">{{ statement.original_filename }}</p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card-custom" style="border-top: 3px solid #0f172a;">
+      <div class="card-icon-wrapper">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Counterparties</div>
+        <div class="card-value-custom">{{ stats.counterparties_identified }}</div>
+        <div class="card-subtext-custom">Identified</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="dashboard-card-custom" style="border-top: 3px solid #16a34a;">
+      <div class="card-icon-wrapper" style="color: #16a34a; background-color: #f0fdf4;">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Transactions</div>
+        <div class="card-value-custom text-success">{{ stats.transactions_identified }}</div>
+        <div class="card-subtext-custom">of {{ stats.total_eligible }} total</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="dashboard-card-custom" style="border-top: 3px solid #0284c7;">
+      <div class="card-icon-wrapper" style="color: #0284c7; background-color: #f0f9ff;">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M0 11.5a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H.5a.5.5 0 0 1-.5-.5v-2zm4-3a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5H4.5a.5.5 0 0 1-.5-.5v-5z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Identification Rate</div>
+        <div class="card-value-custom text-info">{{ stats.identification_rate }}</div>
+        <div class="card-subtext-custom">Coverage</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="dashboard-card-custom card-warning-custom" style="border-top: 3px solid #d97706;">
+      <div class="card-icon-wrapper">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom" style="color: #b45309;">Pending Review</div>
+        <div class="card-value-custom" style="color: #b45309;">{{ stats.pending_review }}</div>
+        <div class="card-subtext-custom">Needs attention</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex gap-3 mb-5">
+  {% if stats.counterparties_identified == 0 %}
+  <form method="post" action="{% url 'start_beneficiary_identification' statement.id %}" class="d-inline">
+    {% csrf_token %}
+    <button class="btn btn-action-primary" type="submit">
+      Start Identification Run
+    </button>
+  </form>
+  {% else %}
+  <a href="{% url 'counterparty_ledger' statement.id %}" class="btn btn-action-primary text-decoration-none">
+    View Counterparty Ledger
+  </a>
+  {% if stats.pending_review > 0 %}
+  <a href="{% url 'analyst_review_queue' statement.id %}" class="btn btn-action-warning-custom text-decoration-none">
+    Review Queue ({{ stats.pending_review }})
+  </a>
+  {% endif %}
+  <a href="{% url 'export_counterparty_ledger' statement.id %}" class="btn btn-action-secondary text-decoration-none">
+    Export Ledger
+  </a>
+  {% endif %}
+</div>
+
+{% if top_counterparties %}
+<div class="table-container-custom mb-5">
+  <div class="table-header-custom">
+    <h5 class="fw-bold text-dark mb-0" style="font-size: 0.95rem;">Top 5 Counterparties (by Net Position)</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-custom align-middle">
+      <thead>
+        <tr>
+          <th>Beneficiary</th>
+          <th>Type</th>
+          <th>Total Debit</th>
+          <th>Total Credit</th>
+          <th>Net Position</th>
+          <th>Txns</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cp in top_counterparties %}
+        <tr>
+          <td class="fw-bold text-dark">{{ cp.name }}</td>
+          <td><span class="badge-type-custom">{{ cp.get_beneficiary_type_display }}</span></td>
+          <td class="text-secondary">₹ {{ cp.total_debit|floatformat:2 }}</td>
+          <td class="text-secondary">₹ {{ cp.total_credit|floatformat:2 }}</td>
+          <td>
+            {% if cp.net_position >= 0 %}
+            <span class="fw-bold text-success">+₹ {{ cp.net_position|floatformat:2 }}</span>
+            {% else %}
+            <span class="fw-bold text-danger">-₹ {{ cp.net_position|floatformat:2 }}</span>
+            {% endif %}
+          </td>
+          <td class="text-secondary fw-semibold">{{ cp.transaction_count }}</td>
+          <td style="text-align: right;">
+            <a href="{% url 'counterparty_detail' statement.id cp.id %}" class="btn-table-action">
+              View
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="p-4 mb-5 text-center info-panel-card" style="background-color: #f0f9ff; border-color: #bae6fd;">
+  <p class="text-info-emphasis mb-0 small fw-medium">Click "Start Beneficiary Identification" to launch processing run rules.</p>
+</div>
+{% endif %}
+
+<div class="info-panel-card">
+  <h6 class="fw-bold text-dark mb-3" style="font-size: 0.9rem;">Processing Engine Layers:</h6>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="step-card" style="border-top-color: #0f172a;">
+        <div class="fw-bold small text-dark mb-1">Layer 1: Rule-Based</div>
+        <p class="text-muted small mb-0">Parses institutional string tokens from standard settlement arrays.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="step-card" style="border-top-color: #0284c7;">
+        <div class="fw-bold small text-dark mb-1">Layer 2: Local AI Model</div>
+        <p class="text-muted small mb-0">Uses offline system pipeline layers to parse messy statement narrations.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="step-card" style="border-top-color: #d97706;">
+        <div class="fw-bold small text-dark mb-1">Layer 3: Analyst Audit</div>
+        <p class="text-muted small mb-0">Assigned validation layout dashboard for unstructured edge items.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

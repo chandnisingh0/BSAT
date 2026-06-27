@@ -1,0 +1,43 @@
+{% extends 'statements/base.html' %}
+{% block title %}Transactions - {{ statement.original_filename }}{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card border-danger shadow-lg">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Delete Statement</h5>
+        </div>
+        <div class="card-body">
+          <h6 class="card-title">Are you absolutely sure?</h6>
+          <p class="text-muted mb-4">
+            This action <strong>cannot be undone</strong>. You will permanently delete:
+          </p>
+          
+          <div class="alert alert-danger" role="alert">
+            <strong>Filename:</strong> {{ statement.original_filename }}<br>
+            <strong>Transactions:</strong> {{ transaction_count }} rows<br>
+            <strong>Uploaded:</strong> {{ statement.uploaded_at|date:"d M Y H:i" }}
+          </div>
+
+          <p class="text-secondary small mb-4">
+            All transaction data, extraction notes, and audit logs for this statement will be removed from the database.
+          </p>
+
+          <form method="post" action="{% url 'delete_statement' statement.id %}" class="d-flex gap-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger flex-grow-1">
+              <i class="bi bi-trash"></i> Yes, Delete Everything
+            </button>
+            <a href="{% url 'transactions' statement.id %}" class="btn btn-secondary">
+              Cancel
+            </a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

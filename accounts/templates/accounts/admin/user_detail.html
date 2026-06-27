@@ -1,0 +1,358 @@
+{% extends "statements/base.html" %}
+
+{% block title %}Tracecore Consulting - User Management{% endblock %}
+{% block nav_users_active %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Navigation Heading Hierarchy */
+  .enterprise-page-header {
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    color: #0f172a;
+    margin-bottom: 0.4rem;
+  }
+
+  .statement-meta-strip {
+    font-size: 0.82rem;
+    color: #475569;
+    letter-spacing: -0.1px;
+    margin-bottom: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .meta-divider {
+    color: #cbd5e1;
+  }
+
+  /* Premium Configuration Panel Customization */
+  .enterprise-filter-bar {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .enterprise-filter-bar label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  .enterprise-filter-bar select {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    color: #0f172a;
+    outline: none;
+    transition: all 0.15s ease;
+    min-width: 200px;
+  }
+
+  .enterprise-filter-bar select:focus {
+    border-color: #071324;
+    box-shadow: 0 0 0 3px rgba(7, 19, 36, 0.06);
+  }
+
+  /* Action Buttons Styling matching Premium theme */
+  .btn-filter-action {
+    background: #071324;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    border: 1px solid #071324;
+    border-radius: 6px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .btn-filter-action:hover {
+    background: #112540;
+    border-color: #112540;
+    color: #ffffff;
+  }
+
+  .btn-filter-reset {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-filter-reset:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+
+  .btn-action-danger {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+  }
+
+  .btn-action-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+    color: #ffffff;
+  }
+
+  /* Workspace Data Table Architecture */
+  .table-workspace-wrap {
+    background: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+
+  .table-workspace-wrap h2 {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    margin: 0;
+  }
+
+  .premium-bank-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+  }
+
+  .premium-bank-table th {
+    background-color: #ffffff;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+  }
+
+  .premium-bank-table td {
+    padding: 0.85rem 1.25rem;
+    font-size: 0.82rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+
+  .premium-bank-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .premium-bank-table tr:hover td {
+    background-color: #fdfdfd;
+  }
+
+  .font-monospace-sub {
+    font-family: var(--bs-font-monospace), monospace;
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="enterprise-page-header">{{ target.full_name }}</h1>
+
+<div class="statement-meta-strip">
+  <span>Identity Node: <strong>{{ target.email }}</strong></span>
+  <span class="meta-divider">&middot;</span>
+  <span>Provisioned: <strong>{{ target.created_at|date:"d M Y" }}</strong></span>
+</div>
+
+<div class="enterprise-filter-bar">
+  <form method="post" class="d-flex flex-wrap align-items-end gap-3">
+    {% csrf_token %}
+    <div class="flex-grow-1" style="max-width: 320px;">
+      <label>System Access Role</label>
+      <select name="role" class="w-100">
+        {% for value, label in all_roles %}
+        <option value="{{ value }}" {% if value == target.role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-filter-action">Update Permissions</button>
+  </form>
+</div>
+
+<div class="enterprise-filter-bar d-flex flex-wrap align-items-center gap-2">
+  <form method="post" action="{% url 'admin_reset_password' target.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn-filter-reset">Reset Account Password</button>
+  </form>
+
+  {% if target.is_active %}
+  <form method="post" action="{% url 'admin_user_deactivate' target.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn-filter-action btn-action-danger">Deactivate Account</button>
+  </form>
+  {% else %}
+  <form method="post" action="{% url 'admin_user_reactivate' target.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn-filter-action">Reactivate Account</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="table-workspace-wrap">
+  <h2>Assigned Engagements</h2>
+  <div class="table-responsive">
+    <table class="premium-bank-table">
+      <thead>
+        <tr>
+          <th>Engagement Module</th>
+          <th>Assigned Date</th>
+          <th>Authorized By</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignments %}
+        <tr>
+          <td class="fw-medium text-dark">{{ a.engagement.name }}</td>
+          <td class="text-nowrap">{{ a.assigned_at|date:"d M Y" }}</td>
+          <td>{{ a.assigned_by.full_name|default:"&mdash;" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="text-center text-muted py-4" style="font-size: 0.82rem;">No operational engagements
+            assigned to this node.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="table-workspace-wrap">
+  <h2>Role / Assignment History</h2>
+  <div class="table-responsive">
+    <table class="premium-bank-table">
+      <thead>
+        <tr>
+          <th>Execution Timestamp</th>
+          <th>Mutation Type</th>
+          <th>Prior State</th>
+          <th>New State</th>
+          <th>Mutated By</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in role_history %}
+        <tr>
+          <td class="text-nowrap font-monospace-sub">{{ h.timestamp|date:"d M Y H:i" }}</td>
+          <td><strong>{{ h.get_change_type_display }}</strong></td>
+          <td>{{ h.prior_value|default:"&mdash;" }}</td>
+          <td>{{ h.new_value|default:"&mdash;" }}</td>
+          <td>{{ h.changed_by.full_name|default:"System Engine" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4" style="font-size: 0.82rem;">No system mutations recorded
+            in historical logs.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="table-workspace-wrap">
+  <h2>Recent Activity Logs</h2>
+  <div class="table-responsive">
+    <table class="premium-bank-table">
+      <thead>
+        <tr>
+          <th>Event Timestamp</th>
+          <th>Action Event</th>
+          <th>String Schema Detail</th>
+          <th>IP Metadata Location</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in recent_activity %}
+        <tr>
+          <td class="text-nowrap font-monospace-sub">{{ e.timestamp|date:"d M Y H:i" }}</td>
+          <td>{{ e.get_action_display }}</td>
+          <td style="max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ e.detail }}
+          </td>
+          <td class="font-monospace-sub">{{ e.ip_address|default:"&mdash;" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4" style="font-size: 0.82rem;">No transaction or session
+            activity logged for this user.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if reset_temp_pwd %}
+<div class="modal fade" id="passwordAlertModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div class="modal-body p-4 text-center">
+        <div class="text-warning mb-3"><i class="bi bi-shield-lock-fill" style="font-size: 3rem;"></i></div>
+        <h5 class="fw-bold text-dark mb-2">Temporary Password Reset</h5>
+        <p class="text-muted small">Please securely copy this configuration below. For security protocols, this password
+          **will not be shown again**.</p>
+
+        <div class="p-3 my-3 bg-light rounded-3 border border-warning-subtle text-start">
+          <div class="mb-1 small"><strong>User Account:</strong> <code class="text-dark">{{ target.email }}</code></div>
+          <div class="small"><strong>Temporary Password:</strong> <code
+              class="text-danger fs-6 fw-bold">{{ reset_temp_pwd }}</code></div>
+        </div>
+
+        <button type="button" class="btn btn-action-primary w-100 mt-2" data-bs-dismiss="modal">I Have Safely Saved
+          It</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if reset_temp_pwd %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const passwordAlertModal = new bootstrap.Modal(document.getElementById('passwordAlertModal'));
+    passwordAlertModal.show();
+  });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'statements/base.html' %}
+{% block title %}Transaction Detail - {{ statement.original_filename }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'cleaning_issues' statement.id %}" class="btn btn-outline-secondary btn-sm mb-3">
+  ← Back to Issues
+</a>
+
+<h2>Transaction Detail</h2>
+<p class="text-muted">{{ statement.original_filename }} — Transaction #{{ transaction.id }}</p>
+
+<!-- Transaction Data -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Transaction Data</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <p><strong>Date:</strong> {{ transaction.txn_date }}</p>
+        <p><strong>Reference:</strong> {{ transaction.reference }}</p>
+        <p><strong>Mode:</strong> {{ transaction.txn_mode }}</p>
+        <p><strong>Counterparty:</strong> {{ transaction.counterparty_name }}</p>
+      </div>
+      <div class="col-md-6">
+        <p><strong>Debit:</strong> {{ transaction.debit }}</p>
+        <p><strong>Credit:</strong> {{ transaction.credit }}</p>
+        <p><strong>Balance:</strong> {{ transaction.balance }}</p>
+      </div>
+    </div>
+
+    <hr>
+
+    <h6>Narration (editable)</h6>
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      <div class="mb-3">
+        <textarea name="value" class="form-control" rows="3" id="narration_field">{{ transaction.narration_raw }}</textarea>
+        <input type="hidden" name="field" value="narration">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Save Narration</button>
+    </form>
+
+    <h6>Debit Amount (editable)</h6>
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      <div class="mb-3">
+        <input type="number" name="value" class="form-control" step="0.01" value="{{ transaction.debit }}">
+        <input type="hidden" name="field" value="debit">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Save Debit</button>
+    </form>
+  </div>
+</div>
+
+<!-- Validation Issues for this Transaction -->
+{% if issues %}
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Validation Issues ({{ issues|length }})</h5>
+  </div>
+  <div class="card-body">
+    {% for issue in issues %}
+    <div class="alert alert-warning mb-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong>
+            {% if issue.severity == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
+            {% elif issue.severity == "HIGH" %}<span class="badge bg-warning">HIGH</span>
+            {% elif issue.severity == "MEDIUM" %}<span class="badge bg-info">MEDIUM</span>
+            {% else %}<span class="badge bg-secondary">INFO</span>{% endif %}
+            <code class="text-danger">{{ issue.code }}</code>
+          </strong>
+          <p class="mb-0 mt-2">{{ issue.message }}</p>
+          {% if issue.suggested_action %}
+          <small class="text-muted">Suggested: {{ issue.suggested_action }}</small>
+          {% endif %}
+        </div>
+        <form method="post" action="{% url 'resolve_issue' statement.id issue.id %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="acknowledged">
+            <button type="submit" class="btn btn-sm btn-success">
+                <i class="bi bi-check-circle"></i> Mark Resolved
+            </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="alert alert-success">
+  <i class="bi bi-check-circle"></i> No validation issues for this transaction!
+</div>
+{% endif %}
+
+{% endblock %}

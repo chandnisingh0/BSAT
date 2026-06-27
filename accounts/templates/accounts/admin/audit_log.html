@@ -1,0 +1,139 @@
+{% extends "statements/base.html" %}
+
+{% block title %}Tracecore Consulting - Audit Log{% endblock %}
+{% block nav_audit_active %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold text-dark m-0">Audit Log</h4>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            <span class="badge bg-dark-subtle text-dark px-2 me-1" style="font-size: 0.72rem; font-weight: 600;">Append-Only Security Ledger</span> 
+            &middot; {{ entries.paginator.count }} entries total
+        </div>
+    </div>
+</div>
+
+<div class="classic-dash-card p-0 overflow-hidden">
+    
+    <div class="px-4 py-3 bg-light-subtle border-bottom">
+        <form method="get" class="row g-2 align-items-center m-0">
+            <div class="col-md-3 col-12">
+                <select name="action" class="form-select form-select-sm" style="border-radius: 8px; font-size: 0.82rem; border: 1px solid #e2e8f0; background-color: #fff;">
+                    <option value="">All Actions (No Filter)</option>
+                    {% for value, label in action_choices %}
+                        <option value="{{ value }}" {% if request.GET.action == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5 col-12">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white text-muted border-end-0" style="border-radius: 8px 0 0 8px; border-color: #e2e8f0;">
+                        <i class="bi bi-search" style="font-size: 0.75rem;"></i>
+                    </span>
+                    <input type="text" name="user" class="form-control form-control-sm border-start-0" placeholder="Filter by user email..." value="{{ request.GET.user }}" style="border-radius: 0 8px 8px 0; font-size: 0.82rem; border-color: #e2e8f0;">
+                </div>
+            </div>
+            <div class="col-md-2 col-12">
+                <button type="submit" class="btn btn-sm btn-dark w-100 py-1-5" style="border-radius: 8px; font-size: 0.82rem; font-weight: 500;">
+                    <i class="bi bi-funnel-fill me-1" style="font-size: 0.75rem;"></i> Apply Filters
+                </button>
+            </div>
+            {% if request.GET.action or request.GET.user %}
+            <div class="col-md-2 col-12">
+                <a href="." class="btn btn-sm btn-action-outline w-100 py-1-5 text-center d-block" style="font-size: 0.82rem;">
+                    Clear
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <tr>
+                    <th class="ps-4 py-3 text-secondary">Timestamp</th>
+                    <th class="py-3 text-secondary">User Identity</th>
+                    <th class="py-3 text-secondary">Action Type</th>
+                    <th class="py-3 text-secondary" style="width: 35%;">Extended Details</th>
+                    <th class="py-3 text-secondary">Associated Engagement</th>
+                    <th class="pe-4 py-3 text-secondary text-end">Origin IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td class="ps-4 text-secondary" style="font-size: 0.8rem; white-space: nowrap;">
+                        {{ e.timestamp|date:"d M Y" }} <span class="text-muted ms-1" style="font-size: 0.75rem;">{{ e.timestamp|date:"H:i:s" }}</span>
+                    </td>
+                    <td class="fw-medium text-dark">{{ e.user_email_snapshot|default:"—" }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark border px-2 py-1" style="border-radius: 6px; font-size: 0.72rem;">
+                            {{ e.get_action_display }}
+                        </span>
+                    </td>
+                    <td class="text-muted" style="max-width: 320px; word-break: break-word;">
+                        {{ e.detail }}
+                    </td>
+                    <td>
+                        {% if e.engagement %}
+                            <span class="fw-semibold text-secondary"><i class="bi bi-folder2-open me-1"></i>{{ e.engagement.name }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-4 text-end"><code class="text-secondary small">{{ e.ip_address|default:"—" }}</code></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-shield-slash fs-2 mb-2 d-block"></i>
+                        No explicit trace log matching current filters found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if entries.paginator.num_pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top bg-light-subtle">
+        <div class="text-secondary small" style="font-size: 0.8rem;">
+            Showing page <span class="fw-bold text-dark">{{ entries.number }}</span> of <span class="fw-semibold">{{ entries.paginator.num_pages }}</span>
+        </div>
+        <nav aria-label="Audit ledger navigation logs">
+            <ul class="pagination pagination-sm m-0 gap-1">
+                {% if entries.has_previous %}
+                <li class="page-item">
+                    <a class="page-link border rounded-2 px-2.5 py-1 text-dark" href="?page={{ entries.previous_page_number }}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo; Prev</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link border rounded-2 px-2.5 py-1 text-muted">&laquo; Prev</span>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link border rounded-2 px-3 py-1 bg-dark text-white border-dark">{{ entries.number }}</span>
+                </li>
+
+                {% if entries.has_next %}
+                <li class="page-item">
+                    <a class="page-link border rounded-2 px-2.5 py-1 text-dark" href="?page={{ entries.next_page_number }}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}" aria-label="Next">
+                        <span aria-hidden="true">Next &raquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link border rounded-2 px-2.5 py-1 text-muted">Next &raquo;</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,379 @@
+{% extends 'statements/base.html' %}
+{% block title %}Counterparty Ledger - {{ statement.original_filename }}{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f8fafc;
+  }
+  
+  /* Navigation Action Line */
+  .btn-back-custom {
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.85rem;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition: all 0.2s ease;
+  }
+  .btn-back-custom:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+
+  /* Summary Metrics Cards with Accent Top Borders */
+  .dashboard-card-custom {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    padding: 1.25rem 1.5rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .card-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background-color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    color: #475569;
+    flex-shrink: 0;
+  }
+  .card-label-custom {
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+  }
+  .card-value-custom {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+
+  /* Form and Filters panel */
+  .filter-panel-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .form-control-custom, .form-select-custom {
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #334155;
+  }
+  .form-control-custom:focus, .form-select-custom:focus {
+    border-color: #94a3b8;
+    box-shadow: none;
+  }
+
+  /* Button Pillars matching UI theme styling */
+  .btn-action-primary {
+    background-color: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 9px 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  .btn-action-primary:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+  }
+  .btn-action-secondary {
+    background-color: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 9px 20px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+  .btn-action-secondary:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  /* Flat Modernized Table Container Grid */
+  .table-container-custom {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .table-custom thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .table-custom tbody td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .table-custom tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Clean Minimal Inline Flat Flags instead of harsh dense badges */
+  .flat-badge-text {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .flat-badge-bg {
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .color-rule { color: #0284c7; }
+  .color-llm { color: #d97706; }
+  .color-analyst { color: #16a34a; }
+  .color-low-alert { color: #ea580c; background-color: #fff7ed; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
+
+  .btn-table-action {
+    font-size: 0.815rem;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 5px 14px;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: #334155;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-table-action:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  /* Modern Pagination Styling Overrides */
+  .pagination-custom .page-link {
+    color: #475569;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .pagination-custom .page-link:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+  .pagination-custom .page-item.active .page-link {
+    background-color: #0f172a;
+    border-color: #0f172a;
+    color: #ffffff;
+    font-weight: 600;
+  }
+</style>
+
+<div class="mb-4">
+  <a href="{% url 'beneficiary_dashboard' statement.id %}" class="btn btn-back-custom text-decoration-none d-inline-flex align-items-center gap-2">
+    ← Back to Dashboard
+  </a>
+</div>
+
+<div class="mb-4">
+  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">Counterparty Ledger</h2>
+  <p class="text-muted small mb-0">{{ statement.original_filename }}</p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="dashboard-card-custom" style="border-top: 3px solid #0f172a;">
+      <div class="card-icon-wrapper">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Total Counterparties</div>
+        <div class="card-value-custom">{{ summary.total_counterparties }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card-custom" style="border-top: 3px solid #16a34a;">
+      <div class="card-icon-wrapper" style="color: #16a34a; background-color: #f0fdf4;">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Total Transactions</div>
+        <div class="card-value-custom text-success">{{ summary.total_transactions }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card-custom" style="border-top: 3px solid #0284c7;">
+      <div class="card-icon-wrapper" style="color: #0284c7; background-color: #f0f9ff;">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M0 11.5a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H.5a.5.5 0 0 1-.5-.5v-2zm4-3a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5H4.5a.5.5 0 0 1-.5-.5v-5z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Total Accumulated Value</div>
+        <div class="card-value-custom text-info">₹ {{ summary.total_value|floatformat:2 }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="filter-panel-card mb-4">
+  <form method="get" class="row g-2 align-items-center">
+    <div class="col-md-4">
+      <input type="text" name="search" class="form-control form-control-custom" placeholder="Search entity name..." value="{{ search }}">
+    </div>
+    <div class="col-md-3">
+      <select name="type" class="form-select form-select-custom">
+        <option value="">All Entity Types</option>
+        <option value="COMPANY" {% if counterparty_type == 'COMPANY' %}selected{% endif %}>Company</option>
+        <option value="INDIVIDUAL" {% if counterparty_type == 'INDIVIDUAL' %}selected{% endif %}>Individual</option>
+        <option value="BANK" {% if counterparty_type == 'BANK' %}selected{% endif %}>Bank</option>
+        <option value="GOVERNMENT" {% if counterparty_type == 'GOVERNMENT' %}selected{% endif %}>Government</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="method" class="form-select form-select-custom">
+        <option value="">All Engine Layers</option>
+        <option value="RULE_BASED" {% if method == 'RULE_BASED' %}selected{% endif %}>Rule-Based</option>
+        <option value="OLLAMA" {% if method == 'OLLAMA' %}selected{% endif %}>Ollama LLM</option>
+        <option value="ANALYST" {% if method == 'ANALYST' %}selected{% endif %}>Analyst Input</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-action-primary w-100" type="submit">
+        Filter Ledger
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="mb-3 d-flex justify-content-start">
+  <a href="{% url 'export_counterparty_ledger' statement.id %}" class="btn btn-action-secondary text-decoration-none d-inline-flex align-items-center gap-2">
+    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+    Export to Excel
+  </a>
+</div>
+
+<div class="table-container-custom">
+  <div class="table-responsive">
+    <table class="table table-custom align-middle table-hover">
+      <thead>
+        <tr>
+          <th>Beneficiary Name</th>
+          <th>Type</th>
+          <th>Method Layer</th>
+          <th>Confidence</th>
+          <th>Total Debit</th>
+          <th>Total Credit</th>
+          <th>Net Position</th>
+          <th>Txns</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cp in counterparties %}
+        <tr>
+          <td>
+            <span class="fw-bold text-dark d-inline-flex align-items-center gap-2">
+              {{ cp.name }}
+              {% if not cp.above_aggregate_threshold %}
+              <span class="color-low-alert" title="Below aggregate threshold">LOW THRESHOLD</span>
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            <span class="flat-badge-bg">{{ cp.get_beneficiary_type_display }}</span>
+          </td>
+          <td>
+            {% if cp.identification_method == 'RULE_BASED' %}
+            <span class="flat-badge-text color-rule">● Rule</span>
+            {% elif cp.identification_method == 'OLLAMA' %}
+            <span class="flat-badge-text color-llm">● LLM</span>
+            {% else %}
+            <span class="flat-badge-text color-analyst">● Analyst</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="text-secondary font-monospace fw-medium">{{ cp.highest_confidence|floatformat:2 }}</span>
+          </td>
+          <td class="text-secondary fw-semibold">₹ {{ cp.total_debit|floatformat:2 }}</td>
+          <td class="text-secondary fw-semibold">₹ {{ cp.total_credit|floatformat:2 }}</td>
+          <td>
+            {% if cp.net_position >= 0 %}
+            <span class="fw-bold text-success">+₹ {{ cp.net_position|floatformat:2 }}</span>
+            {% else %}
+            <span class="fw-bold text-danger">-₹ {{ cp.net_position|floatformat:2 }}</span>
+            {% endif %}
+          </td>
+          <td class="text-dark fw-bold">{{ cp.transaction_count }}</td>
+          <td style="text-align: right;">
+            <a href="{% url 'counterparty_detail' statement.id cp.id %}" class="btn-table-action">
+              View
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-5">
+            No matching counterparties located with active filter sets.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if counterparties.has_other_pages %}
+<nav aria-label="Page navigation" class="mt-4">
+  <ul class="pagination pagination-custom justify-content-center gap-1">
+    {% if counterparties.has_previous %}
+    <li class="page-item">
+      <a class="page-link rounded" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if counterparty_type %}&type={{ counterparty_type }}{% endif %}{% if method %}&method={{ method }}{% endif %}">«</a>
+    </li>
+    <li class="page-item">
+      <a class="page-link rounded" href="?page={{ counterparties.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if counterparty_type %}&type={{ counterparty_type }}{% endif %}{% if method %}&method={{ method }}{% endif %}">‹</a>
+    </li>
+    {% endif %}
+
+    <li class="page-item active">
+      <span class="page-link rounded">Page {{ counterparties.number }} of {{ counterparties.paginator.num_pages }}</span>
+    </li>
+
+    {% if counterparties.has_next %}
+    <li class="page-item">
+      <a class="page-link rounded" href="?page={{ counterparties.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if counterparty_type %}&type={{ counterparty_type }}{% endif %}{% if method %}&method={{ method }}{% endif %}">›</a>
+    </li>
+    <li class="page-item">
+      <a class="page-link rounded" href="?page={{ counterparties.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if counterparty_type %}&type={{ counterparty_type }}{% endif %}{% if method %}&method={{ method }}{% endif %}">»</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

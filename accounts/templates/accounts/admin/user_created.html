@@ -1,0 +1,20 @@
+<!-- {% extends "accounts/admin/_base_admin.html" %}
+{% block title %}User Created{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<h1>{% if is_reset %}Password reset{% else %}User created{% endif %}</h1>
+
+<div class="panel form-card">
+    <p style="font-size:13px; color:#475569;">
+        {{ user_obj.full_name }} ({{ user_obj.email }})
+        {% if is_reset %}password has been reset.{% else %}has been created.{% endif %}
+        Share this temporary password through a secure channel — it will not be shown again.
+    </p>
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:14px; font-family:monospace; font-size:15px; text-align:center; margin:16px 0;">
+        {{ temp_password }}
+    </div>
+    <p style="font-size:12px; color:#94a3b8;">The user will be required to set their own password on next login.</p>
+    <a href="{% url 'admin_user_list' %}" class="btn btn-primary">Back to user list</a>
+</div>
+{% endblock %} -->

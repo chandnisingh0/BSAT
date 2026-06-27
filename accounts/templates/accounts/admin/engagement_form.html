@@ -1,0 +1,19 @@
+<!-- {% extends "accounts/admin/_base_admin.html" %}
+{% block title %}New Engagement{% endblock %}
+{% block nav_engagements %}active{% endblock %}
+
+{% block content %}
+<h1>New engagement</h1>
+<div class="panel form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="field"><label>Engagement name</label>{{ form.name }}</div>
+        <div class="field"><label>Corporate Debtor name</label>{{ form.cd_name }}</div>
+        <div class="field"><label>CIRP / Case number</label>{{ form.cirp_number }}</div>
+        <div class="field"><label>Insolvency Commencement Date</label>{{ form.icd_date }}</div>
+        <div class="field"><label>Status</label>{{ form.status }}</div>
+        <button type="submit" class="btn btn-primary">Create engagement</button>
+        <a href="{% url 'admin_engagement_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %} -->

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Locked — Bank Statement Analysis Tool</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            color: #1a1a1a;
+        }
+        .card {
+            background: #fff;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+            padding: 36px 32px;
+            text-align: center;
+        }
+        .icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 18px;
+            border-radius: 50%;
+            background: #fef2f2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #b91c1c;
+        }
+        h1 { font-size: 17px; color: #0f172a; margin: 0 0 10px; }
+        p { font-size: 13px; color: #475569; line-height: 1.6; margin: 0 0 22px; }
+        .unlock-time {
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+        a.btn {
+            display: inline-block;
+            padding: 10px 22px;
+            background: #1e3a8a;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        a.btn:hover { background: #1e40af; }
+        .footer-note {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 22px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">&#128274;</div>
+        <h1>Account temporarily locked</h1>
+        <p>
+            Too many failed sign-in attempts were detected on this account.
+            {% if unlock_time %}
+                Access will be restored at <span class="unlock-time">{{ unlock_time }}</span>.
+            {% else %}
+                Please wait 30 minutes before trying again.
+            {% endif %}
+        </p>
+        <a href="{% url 'login' %}" class="btn">Back to sign in</a>
+        <div class="footer-note">
+            If you believe this is a mistake, contact your system administrator.
+        </div>
+    </div>
+</body>
+</html>

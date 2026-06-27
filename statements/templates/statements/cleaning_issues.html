@@ -1,0 +1,238 @@
+{% extends 'statements/base.html' %}
+{% block title %}Validation Issues - {{ statement.original_filename }}{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f8fafc;
+  }
+  .btn-back-custom {
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition: all 0.2s ease;
+  }
+  .btn-back-custom:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+  /* Modern clean filter panel card */
+  .filter-card {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    padding: 1.5rem;
+  }
+  .form-label-custom {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+  }
+  .form-select-custom {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #1e293b;
+  }
+  .form-select-custom:focus {
+    border-color: #cbd5e1;
+    box-shadow: none;
+  }
+  .btn-action-primary {
+    background-color: #030712;
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  .btn-action-primary:hover {
+    background-color: #1f2937;
+    color: #ffffff;
+  }
+  /* Modern Flat Table Design */
+  .table-container-custom {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+  .table-custom {
+    margin-bottom: 0;
+    font-size: 0.875rem;
+  }
+  .table-custom thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .table-custom tbody td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .table-custom tbody tr:last-child td {
+    border-bottom: none;
+  }
+  /* Clean Status Indicator text styling instead of heavy badges */
+  .status-text {
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+  }
+  .status-critical { color: #dc2626; }
+  .status-high { color: #d97706; }
+  .status-medium { color: #0284c7; }
+  .status-info { color: #64748b; }
+
+  /* Custom minimal row inner actions buttons */
+  .btn-table-action {
+    font-size: 0.815rem;
+    font-weight: 500;
+    border-radius: 6px;
+    padding: 4px 12px;
+    border: 1px solid #e2e8f0;
+    background-color: #fff;
+    color: #475569;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-table-action:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+  code.code-custom {
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
+</style>
+
+<div class="mb-4">
+  <a href="{% url 'cleaning_dashboard' statement.id %}" class="btn btn-back-custom btn-sm text-decoration-none d-inline-flex align-items-center gap-1">
+    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/></svg>
+    Back to Dashboard
+  </a>
+</div>
+
+<div class="mb-4">
+  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">Validation Issues</h2>
+  <p class="text-muted small mb-0">{{ statement.original_filename }} &mdash; <strong class="text-dark">{{ issues|length }} unresolved issues</strong></p>
+</div>
+
+<div class="filter-card mb-4">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label form-label-custom">Filter by Severity</label>
+      <select name="severity_filter" class="form-select form-select-custom">
+        <option value="">All Severities</option>
+        <option value="CRITICAL" {% if severity_filter == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+        <option value="HIGH" {% if severity_filter == 'HIGH' %}selected{% endif %}>HIGH</option>
+        <option value="MEDIUM" {% if severity_filter == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+        <option value="INFO" {% if severity_filter == 'INFO' %}selected{% endif %}>INFO</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label form-label-custom">Filter by Resolution</label>
+      <select name="resolution_filter" class="form-select form-select-custom">
+        <option value="">All Action Types</option>
+        <option value="required" {% if resolution_filter == 'required' %}selected{% endif %}>Required</option>
+        <option value="optional" {% if resolution_filter == 'optional' %}selected{% endif %}>Optional</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-grid">
+      <button type="submit" class="btn btn-action-primary">Apply Filters</button>
+    </div>
+  </form>
+</div>
+
+<div class="table-container-custom">
+  <div class="table-responsive">
+    <table class="table table-custom table-hover align-middle">
+      <thead>
+        <tr>
+          <th style="width: 15%;">Severity</th>
+          <th style="width: 15%;">Code</th>
+          <th style="width: 45%;">Message</th>
+          <th style="width: 10%;">Required</th>
+          <th style="width: 15%; text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for issue in issues %}
+        <tr>
+          <td>
+            {% if issue.severity == "CRITICAL" %}<span class="status-text status-critical">● CRITICAL</span>
+            {% elif issue.severity == "HIGH" %}<span class="status-text status-high">● HIGH</span>
+            {% elif issue.severity == "MEDIUM" %}<span class="status-text status-medium">● MEDIUM</span>
+            {% else %}<span class="status-text status-info">● INFO</span>{% endif %}
+          </td>
+          <td><code class="code-custom">{{ issue.code }}</code></td>
+          <td class="text-secondary fw-medium">{{ issue.message }}</td>
+          <td>
+            {% if issue.resolution_required %}
+            <span class="status-text status-critical">Yes</span>
+            {% else %}
+            <span class="status-text status-info">No</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <div class="d-inline-flex gap-2">
+              {% if issue.transaction_id %}
+              <a href="{% url 'cleaning_transaction_detail' statement.id issue.transaction_id %}" class="btn-table-action">
+                View
+              </a>
+              {% endif %}
+              <form method="post" action="{% url 'resolve_issue' statement.id issue.id %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="acknowledged">
+                <button type="submit" class="btn-table-action" style="color: #16a34a;">
+                  Resolve
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center py-5 text-muted">
+            No matching issues found matching your filters.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if not issues and not severity_filter and not resolution_filter %}
+<div class="p-5 mt-4 text-center filter-card" style="background-color: #f0fdf4; border-color: #bbf7d0;">
+  <div class="text-success mb-2">
+    <svg width="40" height="40" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/></svg>
+  </div>
+  <h5 class="fw-bold text-success-emphasis">All issues resolved!</h5>
+  <p class="text-success mb-0 small">Your statement data is completely clean and optimized for beneficiary identification trails.</p>
+</div>
+{% endif %}
+
+{% endblock %}

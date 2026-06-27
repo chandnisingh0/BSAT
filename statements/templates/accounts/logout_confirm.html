@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign out — Bank Statement Analysis Tool</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            color: #1a1a1a;
+        }
+        .card {
+            background: #fff;
+            width: 100%;
+            max-width: 380px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+            padding: 36px 32px;
+            text-align: center;
+        }
+        .icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 18px;
+            border-radius: 50%;
+            background: #eff6ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #1d4ed8;
+        }
+        h1 { font-size: 17px; color: #0f172a; margin: 0 0 8px; }
+        p { font-size: 13px; color: #475569; line-height: 1.6; margin: 0 0 22px; }
+        .user-tag {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+        .actions { display: flex; gap: 10px; }
+        button, a.btn {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-confirm { background: #b91c1c; color: #fff; }
+        .btn-confirm:hover { background: #991b1b; }
+        .btn-cancel { background: #f1f5f9; color: #334155; }
+        .btn-cancel:hover { background: #e2e8f0; }
+        .footer-note { font-size: 11px; color: #94a3b8; margin-top: 22px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">&#128274;</div>
+        <h1>Sign out</h1>
+        <p>
+            You are signed in as <span class="user-tag">{{ request.user.full_name }}</span>
+            ({{ request.user.email }}).<br>
+            Are you sure you want to end this session?
+        </p>
+
+        <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <div class="actions">
+                <a href="{% url 'upload' %}" class="btn btn-cancel">Cancel</a>
+                <button type="submit" class="btn-confirm">Sign out</button>
+            </div>
+        </form>
+
+        <div class="footer-note">
+            All session data will be cleared on sign out.
+        </div>
+    </div>
+</body>
+</html>

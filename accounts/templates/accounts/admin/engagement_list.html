@@ -1,0 +1,323 @@
+{% extends "statements/base.html" %}
+
+{% block title %}Tracecore Consulting - Engagements{% endblock %}
+{% block nav_engagements_active %}active{% endblock %}
+
+<style>
+    #newEngagementModal input, 
+    #newEngagementModal select {
+        display: block;
+        width: 100%;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.88rem;
+        color: #1e293b;
+        font-weight: 500;
+        outline: none;
+    }
+    #newEngagementModal input:focus, 
+    #newEngagementModal select:focus {
+        border-color: #c5a059;
+    }
+
+
+    
+.tooltip .tooltip-inner{
+    background:#0058d4!important;
+    color:#fff!important;
+    font-size:12px!important;
+    font-weight:500!important;
+    padding:8px 12px!important;
+    border-radius:10px!important;
+    box-shadow:0 8px 20px rgba(7,19,36,.18)!important;
+}
+
+.tooltip .tooltip-arrow::before{
+    border-top-color:#071324!important;
+}
+</style>
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold text-dark m-0">Engagements</h4>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Each engagement corresponds to one CIRP case / Corporate Debtor
+        </div>
+    </div>
+    <button type="button" class="btn btn-action-primary" data-bs-toggle="modal" data-bs-target="#newEngagementModal">
+        <i class="bi bi-plus-lg me-1"></i> New Engagement
+    </button>
+</div>
+
+<div class="classic-dash-card p-0 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+            <thead class="table-light" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <tr>
+                    <th class="ps-4 py-3 text-secondary">Name</th>
+                    <th class="py-3 text-secondary">Corporate Debtor</th>
+                    <th class="py-3 text-secondary">CIRP No.</th>
+                    <th class="py-3 text-secondary">ICD</th>
+                    <th class="py-3 text-secondary">Status</th>
+                    <th class="pe-4 py-3 text-end text-secondary">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+               {% for e in engagements %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-semibold text-dark">
+                            {{ e.name }}
+                        </div>
+
+                        <small class="text-muted">
+                            {{ e.accounts.count }} Accounts
+                        </small>
+                    </td>
+                    <td>{{ e.cd_name }}</td>
+                    <td><code class="text-secondary">{{ e.cirp_number|default:"—" }}</code></td>
+                    <td>{{ e.icd_date|date:"d M Y"|default:"—" }}</td>
+                    <td>
+                        {% if e.status == 'active' %}
+                            <span class="badge bg-success-subtle text-success pill-badge">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary pill-badge">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-4 text-end">
+                        <div class="action-group">
+                           <button
+                                type="button"
+                                class="btn btn-sm av-btn ma-btn"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#manageAccessDrawer-{{ e.id }}"
+                                title="Manage Team Access">
+                                <i class="fs-6 bi bi-shield-lock"></i>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-sm av-btn fs-6"
+                                data-bs-toggle="offcanvas"
+                                data-bs-target="#accountsDrawer-{{ e.id }}"
+                                title="Bank Accounts">
+                                <i class="bi bi-bank"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-dark py-1 px-3" style="font-size: 0.78rem; border-radius: 20px;" data-bs-toggle="modal" data-bs-target="#addAccountModal-{{ e.id }}">
+                                <i class="bi bi-plus-circle me-1"></i> Add Account
+                            </button>
+                        </div>
+                    </td>   
+                </tr>
+
+                <div class="modal fade" id="addAccountModal-{{ e.id }}" tabindex="-1" aria-labelledby="addAccountModalLabel-{{ e.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                            <div class="modal-header border-0 pt-4 px-4 pb-2">
+                                <div>
+                                    <h5 class="modal-title fw-bold text-dark" id="addAccountModalLabel-{{ e.id }}">Add Bank Account</h5>
+                                    <p class="text-muted mb-0 small" style="font-size: 0.75rem;">Target Engagement: <strong>{{ e.name }}</strong></p>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            
+                            <form method="post" action="{% url 'admin_engagement_add_account' e.id %}">
+                                {% csrf_token %}
+                                <div class="modal-body px-4 py-2">
+                                    
+                                    {% if account_form %}
+                                        {{ account_form.as_p }}
+                                    {% else %}
+                                        {{ form.as_p }}
+                                    {% endif %}
+                                    
+                                </div>
+                                
+                                <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-action-outline m-0" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-action-primary m-0">Save Bank Account</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+
+                <div class="offcanvas offcanvas-end"
+                    tabindex="-1"
+                    id="accountsDrawer-{{ e.id }}"
+                    style="width:500px">
+
+                    <div class="offcanvas-header">
+                        <h5>Bank Accounts</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="offcanvas"></button>
+                    </div>
+
+                    <div class="offcanvas-body">
+
+                        {% for account in e.accounts.all %}
+                            <div class="card mb-2 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <div class="fw-semibold">
+                                        {{ account.bank_name }}
+                                    </div>
+
+                                    <div class="text-muted small">
+                                        {{ account.account_number }}
+                                    </div>
+
+                                    <div class="small">
+                                        {{ account.account_holder_name }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center text-muted">
+                                No accounts added yet.
+                            </div>
+                        {% endfor %}
+
+                    </div>
+                </div>
+
+
+                <div class="offcanvas offcanvas-end" tabindex="-1" id="manageAccessDrawer-{{ e.id }}" aria-labelledby="manageAccessDrawerLabel-{{ e.id }}" style="width: 400px; border-left: none; box-shadow: -5px 0 25px rgba(0,0,0,0.15);">
+                    <div class="offcanvas-header pt-4 px-4 pb-2">
+                        <div>
+                            <h5 class="offcanvas-title fw-bold text-dark" id="manageAccessDrawerLabel-{{ e.id }}">Manage Access</h5>
+                            <p class="text-muted mb-0 small" style="font-size: 0.75rem;">Case: <span class="text-dark fw-semibold">{{ e.name }}</span></p>
+                        </div>
+                        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                    </div>
+                    
+                    <form method="post" action="{% url 'admin_engagement_assign' e.id %}" class="d-flex flex-column justify-content-between">
+                        {% csrf_token %}    
+                        <div class="offcanvas-body px-4 py-3">
+                            <p class="small text-secondary mb-3">Select the active team members authorized to access and parse statement data for this corporate debtor corporate case files:</p>
+                            
+                                {% for user in all_users %}
+                                    <div class="form-check p-2 mx-2 border-bottom border-light d-flex align-items-center gap-2">
+                                        <input
+                                                class="form-check-input mt-0"
+                                                type="checkbox"
+                                                name="user_ids"
+                                                value="{{ user.id }}"
+                                                id="user-{{ e.id }}-{{ user.id }}"
+
+                                                {% for assignment in e.assignments.all %}
+                                                    {% if assignment.user_id == user.id %}
+                                                        checked
+                                                    {% endif %}
+                                                {% endfor %}
+                                            >
+                                        <label class="form-check-label small text-dark fw-medium" for="user-{{ e.id }}-{{ user.id }}" style="cursor: pointer;">
+                                            {{ user.full_name|default:user.email }}
+                                            <span class="d-block text-muted style-block" style="font-size: 0.7rem; font-weight: normal;">{{ user.email }}</span>
+                                        </label>
+                                    </div>
+                                {% empty %}
+                                    <div class="text-center py-3 text-muted small">No active users found.</div>
+                                {% endfor %}
+                        </div>
+                        
+                        <div class="p-4 border-top bg-white d-flex gap-2">
+                            <button type="button" class="btn btn-action-outline w-50 m-0" data-bs-dismiss="offcanvas">Cancel</button>
+                            <button type="submit" class="btn btn-action-primary w-50 m-0">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-folder-x fs-2 mb-2 d-block"></i>
+                        No engagements found yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="newEngagementModal" tabindex="-1" aria-labelledby="newEngagementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header border-0 pt-4 px-4 pb-2">
+                <h5 class="modal-title fw-bold text-dark" id="newEngagementModalLabel">Create New Engagement</h5>
+                <button type="button" class="btn-close" data-bs-shadow="none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form method="post" action="{% url 'admin_engagement_list' %}">
+                {% csrf_token %}
+                <div class="modal-body px-4 py-2">
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger py-2 small" style="border-radius: 8px;">
+                            Please correct the validation errors highlighted below.
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Engagement Name</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>{% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Corporate Debtor Name</label>
+                        {{ form.cd_name }}
+                        {% if form.cd_name.errors %}<div class="text-danger small mt-1">{{ form.cd_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">CIRP / Case Number</label>
+                        {{ form.cirp_number }}
+                        {% if form.cirp_number.errors %}<div class="text-danger small mt-1">{{ form.cirp_number.errors.0 }}</div>{% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Insolvency Commencement Date</label>
+                        {{ form.icd_date }}
+                        {% if form.icd_date.errors %}<div class="text-danger small mt-1">{{ form.icd_date.errors.0 }}</div>{% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Status</label>
+                        {{ form.status }}
+                        {% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-action-outline m-0" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-action-primary m-0">Create Engagement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Professional Fallback: Automatically pop open the modal framework if validation returns errors
+    document.addEventListener("DOMContentLoaded", function () {
+        {% if show_modal %}
+            const newEngagementModal = new bootstrap.Modal(document.getElementById('newEngagementModal'));
+            newEngagementModal.show();
+        {% endif %}
+    });
+
+   
+    
+    // for tooltip
+    document.querySelectorAll('[title]').forEach(el => {
+    new bootstrap.Tooltip(el);
+});
+</script>
+{% endblock %}

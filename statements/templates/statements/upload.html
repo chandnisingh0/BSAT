@@ -1,0 +1,543 @@
+{% extends 'statements/base.html' %}
+{% block title %}Dashboard - Workspace{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Premium 3D Isometric Metrics Grid Styles */
+  .metric-3d-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(145deg, #ffffff, #fbfcfe);
+    border: 1px solid #eef2f6;
+    box-shadow: 0 10px 25px -5px rgb(15 23 42 / 6%), 0 4px 12px -2px rgba(15, 23, 42, 0.01);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .metric-3d-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px -5px rgba(15, 23, 42, 0.04), 0 4px 16px -2px rgba(15, 23, 42, 0.02);
+  }
+
+  .icon-3d-container {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
+  /* The physical shadow depth layer beneath the icon box */
+  .icon-3d-depth-shadow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 6px 12px rgba(15, 23, 42, 0.15);
+    z-index: 1;
+  }
+
+  /* Color modifications for the isometric depth panels */
+  .depth-dark {
+    background: #071324;
+    opacity: 0.08;
+    transform: rotate(-6deg) translateY(2px);
+  }
+
+  .depth-gold {
+    background: #c5a059;
+    opacity: 0.22;
+    transform: rotate(6deg) translateY(2px);
+  }
+
+  .depth-danger {
+    background: #dc2626;
+    opacity: 0.15;
+    transform: rotate(6deg) translateY(2px);
+  }
+
+  /* Top floating high-contrast glassmorphic module */
+  .icon-3d-floating-badge {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 4px 12px rgba(15, 23, 42, 0.06), inset 0 1px 2px #ffffff;
+    z-index: 2;
+  }
+
+  /* Fine typography mapping for metric metadata labels */
+  .metric-label-text {
+    font-size: 1rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    /* text-transform: uppercase; */
+    letter-spacing: 0.6px;
+  }
+
+  .metric-label-text.flagged {
+    color: #dc2626;
+    font-weight: 700;
+  }
+
+  .metric-value-display {
+    font-size: 1.45rem;
+    letter-spacing: -0.5px;
+    margin-top: 2px !important;
+  }
+
+  /* Form & Element Cleanups */
+  .form-header-title {
+    font-size: 0.92rem;
+  }
+
+  .field-input-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .field-help-text {
+    font-size: 0.75rem;
+  }
+
+  .activity-avatar-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+  }
+
+  .activity-title {
+    font-size: 0.82rem;
+  }
+
+  .activity-time {
+    font-size: 0.7rem;
+  }
+
+  .btn-audit-trail-custom {
+    font-size: 0.8rem;
+  }
+
+  /* Document History Card Specifics */
+  .history-file-card {
+    border-radius: 8px;
+    background: #ffffff;
+    border-color: var(--card-border) !important;
+  }
+
+  .history-file-title {
+    font-size: 0.82rem;
+  }
+
+  .history-file-badge {
+    font-size: 0.65rem;
+    font-weight: 500;
+    border-radius: 4px;
+  }
+
+  .history-meta-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .btn-history-action {
+    font-size: 0.75rem;
+    border-radius: 4px;
+  }
+
+  .classic-dash-card {
+    padding: 1rem !important;
+  }
+
+  /* Corporate Typography Hierarchy Styles */
+  .upload-panel-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: #0f172a !important;
+    /* Deep Slate corporate text color */
+  }
+
+  .premium-input-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: #475569 !important;
+    /* Muted corporate color */
+    text-transform: uppercase;
+    margin-bottom: 6px !important;
+  }
+
+  .premium-help-text {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: #64748b !important;
+    letter-spacing: -0.1px;
+    margin-top: 6px !important;
+  }
+
+  .activity-item-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #1e293b !important;
+    letter-spacing: -0.1px;
+  }
+
+  .activity-item-time {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: #94a3b8 !important;
+    letter-spacing: 0.2px;
+    margin-top: 2px;
+  }
+
+  /* Form control text customization */
+  .custom-form-field-wrapper select,
+  .custom-form-field-wrapper input {
+    font-size: 0.88rem !important;
+    font-weight: 400 !important;
+    letter-spacing: -0.1px !important;
+    color: #0f172a !important;
+  }
+</style>
+<style>
+  .processing-corner-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background: #fffaf0;
+    border: 1px solid #f6c453;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .processing-corner-badge .spinner-border {
+    width: 12px;
+    height: 12px;
+    color: #c5821f;
+  }
+
+  .failed-corner-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #dc2626;
+    font-size: 0.7rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if not form.account.field.queryset.exists %}
+<div class="alert alert-warning border-0 p-3 mb-4 d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+  <span class="text-dark">
+    No operational accounts are available to upload statements against yet.
+    {% if request.user.role == "admin" %}
+    Navigate to <a href="{% url 'admin_engagement_list' %}" class="fw-semibold text-dark">Engagements</a> to establish
+    one.
+    {% endif %}
+  </span>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="classic-dash-card metric-3d-card d-flex align-items-center gap-3">
+      <div class="icon-3d-container">
+        <div class="icon-3d-depth-shadow depth-dark"></div>
+        <div class="icon-3d-floating-badge">
+          <i class="bi bi-buildings text-dark fs-5"></i>
+        </div>
+      </div>
+      <div>
+        <div class="metric-label-text">Accounts</div>
+        <h4 class="fw-bold m-0 text-dark metric-value-display">{{ account_count|default:0 }}</h4>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="classic-dash-card metric-3d-card d-flex align-items-center gap-3">
+      <div class="icon-3d-container">
+        <div class="icon-3d-depth-shadow depth-gold"></div>
+        <div class="icon-3d-floating-badge">
+          <i class="bi bi-file-earmark-text fs-5" style="color: var(--brand-gold);"></i>
+        </div>
+      </div>
+      <div>
+        <div class="metric-label-text">Statements</div>
+        <h4 class="fw-bold m-0 text-dark metric-value-display">{{ statement_count|default:0 }}</h4>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="classic-dash-card metric-3d-card d-flex align-items-center gap-3">
+      <div class="icon-3d-container">
+        <div class="icon-3d-depth-shadow depth-dark"></div>
+        <div class="icon-3d-floating-badge">
+          <i class="bi bi-arrow-left-right text-dark fs-5"></i>
+        </div>
+      </div>
+      <div>
+        <div class="metric-label-text">Transactions</div>
+        <h4 class="fw-bold m-0 text-dark metric-value-display">{{ transaction_count|default:0 }}</h4>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="classic-dash-card metric-3d-card d-flex align-items-center gap-3">
+      <div class="icon-3d-container">
+        <div class="icon-3d-depth-shadow depth-danger"></div>
+        <div class="icon-3d-floating-badge">
+          <i class="bi bi-exclamation-triangle text-danger fs-5"></i>
+        </div>
+      </div>
+      <div>
+        <div class="metric-label-text flagged">Flagged Items</div>
+        <h4 class="fw-bold m-0 text-dark metric-value-display">{{ flagged_count|default:0 }}</h4>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-xl-8">
+    <div class="classic-dash-card h-100">
+      <h6 class="upload-panel-title mb-4">Upload Bank Statement</h6>
+
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="mb-4">
+          <label class="form-label premium-input-label">Account Target</label>
+          <div class="custom-form-field-wrapper">
+            {{ form.account }}
+          </div>
+          <div class="form-text premium-help-text">Which Corporate Debtor account is this statement for?</div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label premium-input-label">Statement File (PDF / CSV / XLSX / RPT)</label>
+          <div class="custom-form-field-wrapper">
+            {{ form.file }}
+          </div>
+          <div class="form-text premium-help-text">Upload structural data CSV, XLSX, PDF, image (jpg/png) or RPT file.
+          </div>
+        </div>
+
+        <div class="gold-fade-line"></div>
+
+        <div class="d-flex align-items-center gap-2">
+          <button type="submit" class="btn btn-action-primary">
+            <i class="bi bi-lightning-charge-fill me-1" style="color: var(--brand-gold);"></i> Upload &amp; Extract
+          </button>
+          <button type="reset" class="btn btn-action-outline">Reset Form</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="classic-dash-card h-100 d-flex flex-column justify-content-between">
+      <div>
+        <h6 class="upload-panel-title mb-3">Recent Activity</h6>
+        <div class="activity-stream-container mt-3">
+          {% for entry in recent_activity %}
+          <div class="d-flex gap-3 mb-3 pb-3 border-bottom border-light-subtle">
+            <div
+              class="text-secondary bg-light rounded-circle d-flex align-items-center justify-content-center activity-avatar-icon">
+              <i class="bi bi-file-earmark-arrow-up"></i>
+            </div>
+            <div>
+              <div class="activity-item-title">{{ entry.get_action_display }}</div>
+              <div class="activity-item-time">{{ entry.timestamp|date:"d M, H:i" }}</div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="text-muted text-center py-4 activity-item-title">No recent system updates recorded.</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% if request.user.role == "admin" or request.user.role == "reviewer" %}
+      <a href="{% url 'admin_audit_log' %}" class="btn btn-action-outline w-100 mt-2 btn-audit-trail-custom">
+        <i class="bi bi-shield-check me-1.5"></i> View Audit Trail
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="classic-dash-card">
+  <h6 class="fw-bold text-dark mb-4 form-header-title">Recent Upload History</h6>
+
+  {% if recent %}
+  <div class="row g-3">
+    {% for s in recent %}
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="card p-3 border shadow-none h-100 history-file-card position-relative" data-statement-id="{{ s.id }}">
+        {% if s.extraction_status == "processing" or s.extraction_status == "pending" %}
+        <!-- <span class="processing-corner-badge" title="Extraction in progress">
+                  <span class="spinner-border spinner-border-sm"></span>
+                </span> -->
+        {% elif s.extraction_status == "failed" %}
+        <span class="failed-corner-badge" title="Extraction failed">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </span>
+        {% endif %}
+
+        <div class="d-flex align-items-start gap-2 mb-3">
+          <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
+          <div class="text-truncate flex-grow-1">
+            <div class="fw-semibold text-dark text-truncate history-file-title" title="{{ s.original_filename }}">{{ s.original_filename }}</div>
+            <span class="badge bg-light text-secondary border mt-1 history-file-badge">{{ s.get_file_type_display|default:"Unknown" }}</span>
+          </div>
+        </div>
+
+        <div class="mt-auto pt-2 border-top history-meta-text">
+          <div class="d-flex justify-content-between mb-1">
+            <span>Lines Extracted:</span>
+            <strong class="text-dark lines-extracted-value">{{ s.rows_extracted|default:"0" }}</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-3">
+            <span>Uploaded:</span>
+            <span class="text-dark">{{ s.uploaded_at|date:"d M Y" }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div></div>
+          <!-- Delete Statement Button -->
+        <a href="{% url 'confirm_delete_statement' s.id %}" 
+              class="btn btn-danger btn-sm">
+              <i class="bi bi-trash"></i>
+            </a>
+        </div>
+        <div class="card-action-slot">
+          {% if s.extraction_status == "processing" or s.extraction_status == "pending" %}
+          <div class="d-flex gap-2 mb-2">
+            <button class="border-0 btn btn-sm btn-action-outline flex-grow-1 py-1.5 btn-history-action" disabled>
+              <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+              Processing&hellip;
+            </button>
+            <form method="post" action="{% url 'cancel_extraction' s.id %}"
+              onsubmit="return confirm('Cancel this extraction? Already-extracted rows will be kept.');" class="m-0">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger py-1.5 btn-history-action px-3">
+                Cancel
+              </button>
+            </form>
+          </div>
+          <a href="{% url 'transactions' s.id %}" class="btn btn-sm btn-action-primary w-100 py-1.5 btn-history-action">
+            View Live Progress
+          </a>
+          {% else %}
+          <a href="{% url 'transactions' s.id %}" class="btn btn-sm btn-action-outline w-100 py-1.5 btn-history-action">
+            View Transactions
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-folder2-open text-muted fs-3 mb-2 d-block"></i>
+    <p class="text-muted small m-0">No structural file data history detected inside this account workspace.</p>
+  </div>
+  {% endif %}
+</div>
+
+
+{% if has_active_extraction %}
+<script>
+  (function () {
+    function poll() {
+      fetch("{% url 'extraction_status_api' %}")
+        .then(r => r.json())
+        .then(data => {
+          let stillActive = false;
+
+          data.statements.forEach(s => {
+            const card = document.querySelector(`[data-statement-id="${s.id}"]`);
+            if (!card) return;
+
+            // Remove any existing status badge
+            const existingBadge = card.querySelector('.processing-corner-badge, .failed-corner-badge');
+            if (existingBadge) existingBadge.remove();
+
+            // Update lines-extracted count live, without reload
+            const linesEl = card.querySelector('.lines-extracted-value');
+            if (linesEl) linesEl.textContent = s.rows_extracted;
+
+            const actionSlot = card.querySelector('.card-action-slot');
+
+            if (s.status === "processing" || s.status === "pending") {
+              stillActive = true;
+              const badge = document.createElement('span');
+              badge.title = 'Extraction in progress';
+              card.prepend(badge);
+
+              if (actionSlot) {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                actionSlot.innerHTML = `
+                              <div class="d-flex gap-2 mb-2">
+                                  <button class="border-0 btn btn-sm btn-action-outline flex-grow-1 py-1.5 btn-history-action" disabled>
+                                      <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                      Processing&hellip;
+                                  </button>
+                                  <form method="post" action="/statement/${s.id}/cancel/" onsubmit="return confirm('Cancel this extraction? Already-extracted rows will be kept.');" class="m-0">
+                                      <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                                      <button type="submit" class="btn btn-sm btn-outline-danger py-1.5 btn-history-action px-3">Cancel</button>
+                                  </form>
+                              </div>
+                              <a href="/statement/${s.id}/" class="btn btn-sm btn-action-primary w-100 py-1.5 btn-history-action">View Live Progress</a>
+                          `;
+              }
+            } else if (s.status === "failed") {
+              const badge = document.createElement('span');
+              badge.className = 'failed-corner-badge';
+              badge.title = 'Extraction failed';
+              badge.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i>';
+              card.prepend(badge);
+            } else if (s.status === "completed") {
+              if (actionSlot && actionSlot.querySelector('button')) {
+                actionSlot.innerHTML = `<a href="/statement/${s.id}/" class="btn btn-sm btn-action-outline w-100 py-1.5 btn-history-action">View Transactions</a>`;
+              }
+            }
+          });
+
+          if (stillActive) {
+            setTimeout(poll, 4000);  // keep polling silently, no reload
+          }
+        })
+        .catch(() => setTimeout(poll, 6000));  // retry on network hiccup
+    }
+    poll();
+  })();
+</script>
+{% endif %}
+{% endblock %}

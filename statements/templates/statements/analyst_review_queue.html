@@ -1,0 +1,146 @@
+{% extends 'statements/base.html' %}
+{% block title %}Analyst Review Queue - {{ statement.original_filename }}{% endblock %}
+
+{% block content %}
+<div class="" style="background-color: #f8fafc; min-height: 100vh;">
+  
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+          <li class="breadcrumb-item"><a href="{% url 'beneficiary_dashboard' statement.id %}" class="text-decoration-none text-muted">Dashboard</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Review Queue</li>
+        </ol>
+      </nav>
+      <h2 class="fw-bold text-dark mb-1" style="font-size: 1.75rem;">Analyst Review Queue</h2>
+      <p class="text-muted mb-0">{{ statement.original_filename }} — <strong>{{ total_unidentified }}</strong> unidentified transactions</p>
+    </div>
+    
+    <a href="{% url 'beneficiary_dashboard' statement.id %}" class="btn btn-outline-secondary px-3" style="border-radius: 8px;">
+      <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.95rem;">
+          <thead style="background-color: #f1f5f9; color: #475569; font-weight: 600; border-bottom: 2px solid #e2e8f0;">
+            <tr>
+              <th class="ps-4 py-3 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Date</th>
+              <th class="py-3 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Narration</th>
+              <th class="py-3 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Type</th>
+              <th class="py-3 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px; text-align: right;">Amount</th>
+              <th class="pe-4 py-3 text-uppercase text-center" style="font-size: 0.75rem; letter-spacing: 0.5px; width: 140px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in txns %}
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td class="ps-4 py-3 text-secondary">{{ txn.txn_date }}</td>
+              
+              <td class="py-3 text-dark fw-medium" style="max-width: 400px; word-break: break-word;">
+                {{ txn.narration_raw }}
+              </td>
+              
+              <td class="py-3">
+                {% if txn.debit %}
+                <span class="badge px-2.5 py-1.5 fw-semibold" style="background-color: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; border-radius: 6px;">DEBIT</span>
+                {% else %}
+                <span class="badge px-2.5 py-1.5 fw-semibold" style="background-color: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; border-radius: 6px;">CREDIT</span>
+                {% endif %}
+              </td>
+              
+              <td class="py-3 text-end fw-bold text-dark" style="font-size: 1rem;">
+                {% if txn.debit %}
+                ₹ {{ txn.debit|floatformat:2 }}
+                {% else %}
+                ₹ {{ txn.credit|floatformat:2 }}
+                {% endif %}
+              </td>
+              
+              <td class="pe-4 py-3 text-center">
+                <button type="button" class="btn btn-sm text-white px-3 py-1.5 d-inline-flex align-items-center gap-1" 
+                        style="background-color: #0b132b; border-radius: 6px; font-weight: 500; font-size: 0.85rem;"
+                        data-bs-toggle="modal" data-bs-target="#assignModal{{ txn.id }}">
+                  <i class="bi bi-pencil-square"></i> Assign
+                </button>
+              </td>
+            </tr>
+
+            <div class="modal fade" id="assignModal{{ txn.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow" style="border-radius: 12px;">
+                  <div class="modal-header border-bottom px-4" style="background-color: #f8fafc;">
+                    <h5 class="modal-title fw-bold text-dark">Assign Beneficiary</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <form method="post" action="{% url 'assign_beneficiary' statement.id txn.id %}">
+                    {% csrf_token %}
+                    <div class="modal-body px-4 py-4">
+                      <div class="p-3 mb-3 border rounded bg-light" style="font-size: 0.85rem; border-color: #e2e8f0 !important;">
+                        <span class="text-muted d-block mb-1 fw-medium text-uppercase" style="font-size: 0.75rem;">Transaction Narration:</span>
+                        <span class="text-dark fw-medium">{{ txn.narration_raw }}</span>
+                      </div>
+                      
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">Beneficiary Name</label>
+                        <input type="text" name="beneficiary_name" class="form-control" style="border-radius: 8px; border-color: #cbd5e1;" required placeholder="Enter name...">
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">Beneficiary Type</label>
+                        <select name="beneficiary_type" class="form-select" style="border-radius: 8px; border-color: #cbd5e1;">
+                          <option value="COMPANY">Company</option>
+                          <option value="INDIVIDUAL">Individual</option>
+                          <option value="BANK">Bank</option>
+                          <option value="GOVERNMENT">Government</option>
+                          <option value="UNKNOWN">Unknown</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="modal-footer border-top px-4 py-3" style="background-color: #f8fafc;">
+                      <button type="button" class="btn btn-outline-secondary px-3" style="border-radius: 8px;" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn text-white px-4" style="background-color: #0b132b; border-radius: 8px;">Assign</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if txns.has_other_pages %}
+  <nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center gap-1">
+      {% if txns.has_previous %}
+      <li class="page-item">
+        <a class="page-link border-0 text-dark bg-white shadow-sm px-3 py-2" style="border-radius: 6px;" href="?page=1">First</a>
+      </li>
+      <li class="page-item">
+        <a class="page-link border-0 text-dark bg-white shadow-sm px-3 py-2" style="border-radius: 6px;" href="?page={{ txns.previous_page_number }}">Previous</a>
+      </li>
+      {% endif %}
+
+      <li class="page-item active">
+        <span class="page-link border-0 text-white shadow-sm px-3 py-2" style="background-color: #0b132b; border-radius: 6px;">Page {{ txns.number }} of {{ txns.paginator.num_pages }}</span>
+      </li>
+
+      {% if txns.has_next %}
+      <li class="page-item">
+        <a class="page-link border-0 text-dark bg-white shadow-sm px-3 py-2" style="border-radius: 6px;" href="?page={{ txns.next_page_number }}">Next</a>
+      </li>
+      <li class="page-item">
+        <a class="page-link border-0 text-dark bg-white shadow-sm px-3 py-2" style="border-radius: 6px;" href="?page={{ txns.paginator.num_pages }}">Last</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
+{% endblock %}

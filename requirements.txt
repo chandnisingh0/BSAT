@@ -1,0 +1,9 @@
+Django==5.0.6
+mysqlclient==2.2.4
+python-dotenv==1.0.1
+pandas==2.2.2
+openpyxl==3.1.2
+pdfplumber==0.11.0
+pytesseract==0.3.10
+Pillow==10.3.0
+pdf2image==1.17.0

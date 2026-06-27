@@ -1,0 +1,254 @@
+{% extends 'statements/base.html' %}
+{% block title %}Transaction Detail - {{ statement.original_filename }}{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f8fafc;
+  }
+  
+  /* Navigation Action Line */
+  .btn-back-custom {
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.85rem;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition: all 0.2s ease;
+  }
+  .btn-back-custom:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+
+  /* Core UI Structural Cards */
+  .detail-card-custom {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    margin-bottom: 1.5rem;
+  }
+  .card-header-custom {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 12px 12px 0 0 !important;
+  }
+
+  /* Crisp Parameter Key-Value Rows */
+  .table-custom th {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 0.75rem 1rem;
+    width: 30%;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .table-custom td {
+    color: #1e293b;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .table-custom tr:last-child th, .table-custom tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Clean Forms Elements */
+  .form-label-custom {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.4rem;
+  }
+  .form-control-custom {
+    border-radius: 8px 0 0 8px !important;
+    border: 1px solid #cbd5e1;
+    font-size: 0.875rem;
+    color: #334155;
+    padding: 0.55rem 0.75rem;
+  }
+  .form-control-custom:focus {
+    border-color: #94a3b8;
+    box-shadow: none;
+  }
+  .btn-save-inline {
+    background-color: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 0 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+  }
+  .btn-save-inline:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+  }
+
+  /* Issue Items Formatting */
+  .issue-item-box {
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .issue-code-text {
+    font-size: 0.75rem;
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  /* Custom Clean Alert Badges Instead of Default Background Blocks */
+  .badge-severity {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .bg-sev-critical { color: #dc2626; background-color: #fef2f2; }
+  .bg-sev-high { color: #d97706; background-color: #fffbeb; }
+  .bg-sev-medium { color: #0284c7; background-color: #f0f9ff; }
+  .bg-sev-info { color: #64748b; background-color: #f8fafc; }
+  .bg-sev-resolved { color: #16a34a; background-color: #f0fdf4; }
+
+  .btn-resolve-custom {
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 4px 12px;
+    border: 1px solid #babfc7;
+    background-color: #ffffff;
+    color: #334155;
+    transition: all 0.2s;
+  }
+  .btn-resolve-custom:hover {
+    background-color: #f0fdf4;
+    border-color: #16a34a;
+    color: #16a34a;
+  }
+</style>
+
+<div class="mb-4">
+  <a href="{% url 'cleaning_issues' statement.id %}" class="btn btn-back-custom text-decoration-none d-inline-flex align-items-center gap-2">
+    ← Back to Issues
+  </a>
+</div>
+
+<div class="mb-4">
+  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">Transaction Detail</h2>
+  <p class="text-muted small mb-0"><span class="fw-semibold text-secondary">Source:</span> {{ statement.original_filename }} — <span class="font-monospace text-dark fw-bold">ID #{{ transaction.id }}</span></p>
+</div>
+
+<div class="row">
+  <div class="col-md-7">
+    <div class="detail-card-custom">
+      <div class="card-header-custom">Transaction Parameters</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-custom align-middle mb-0">
+            <tbody>
+              <tr><th>Booking Date</th><td class="font-monospace text-secondary small">{{ transaction.txn_date }}</td></tr>
+              <tr><th>Reference Tag</th><td class="font-monospace small">{{ transaction.reference|default:"—" }}</td></tr>
+              <tr><th>Channel Mode</th><td><span class="badge bg-light text-dark border font-monospace small" style="font-size:0.75rem;">{{ transaction.txn_mode }}</span></td></tr>
+              <tr><th>Target Counterparty</th><td class="fw-bold text-dark">{{ transaction.counterparty_name|default:"Unidentified / Suspense" }}</td></tr>
+              <tr><th>Outbound Debit (-)</th><td class="fw-semibold {% if transaction.debit %}text-danger{% endif %}">{% if transaction.debit %}₹ {{ transaction.debit|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+              <tr><th>Inbound Credit (+)</th><td class="fw-semibold {% if transaction.credit %}text-success{% endif %}">{% if transaction.credit %}₹ {{ transaction.credit|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+              <tr><th>Resulting Balance</th><td class="font-monospace text-secondary fw-semibold">{% if transaction.balance %}₹ {{ transaction.balance|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-card-custom p-4">
+      <div class="fw-bold text-dark mb-3" style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">Data Adjustments Override</div>
+      
+      <form method="post" class="mb-3">
+        {% csrf_token %}
+        <input type="hidden" name="field" value="narration">
+        <label class="form-label-custom">Narration Text Field</label>
+        <div class="input-group">
+          <input type="text" name="value" class="form-control form-control-custom font-monospace" value="{{ transaction.narration_raw }}">
+          <button class="btn btn-save-inline" type="submit">Save</button>
+        </div>
+      </form>
+
+      <form method="post" class="mb-0">
+        {% csrf_token %}
+        <input type="hidden" name="field" value="debit">
+        <label class="form-label-custom">Debit Matrix Value</label>
+        <div class="input-group">
+          <input type="number" step="0.01" name="value" class="form-control form-control-custom font-monospace" value="{{ transaction.debit|default:'' }}">
+          <button class="btn btn-save-inline" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="detail-card-custom">
+      <div class="card-header-custom">Validation Flags ({{ issues|length }})</div>
+      <div class="card-body p-3">
+        {% if not issues %}
+        <div class="p-4 text-center">
+          <p class="text-muted small mb-0">No structural anomalies or validation flags registered for this record.</p>
+        </div>
+        {% endif %}
+        
+        {% for issue in issues %}
+        <div class="issue-item-box">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+              {% if issue.severity == "CRITICAL" %}<span class="badge-severity bg-sev-critical">CRITICAL</span>
+              {% elif issue.severity == "HIGH" %}<span class="badge-severity bg-sev-high">HIGH</span>
+              {% elif issue.severity == "MEDIUM" %}<span class="badge-severity bg-sev-medium">MEDIUM</span>
+              {% else %}<span class="badge-severity bg-sev-info">INFO</span>{% endif %}
+            </div>
+            <span class="issue-code-text font-monospace">{{ issue.code }}</span>
+          </div>
+          
+          <p class="text-dark small mb-3" style="line-height: 1.4;">{{ issue.message }}</p>
+          
+          <div class="d-flex justify-content-end align-items-center pt-2 border-top border-light">
+            {% if issue.resolved %}
+              <span class="badge-severity bg-sev-resolved">✓ Acknowledged & Resolved</span>
+            {% elif issue.id %}
+              <form method="post" action="{% url 'resolve_issue' statement.id issue.id %}" class="m-0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="acknowledged">
+                <button class="btn-resolve-custom" type="submit">Clear Issue</button>
+              </form>
+            {% else %}
+              <span class="text-muted style-warning font-monospace" style="font-size: 0.7rem;" title="Re-run validation to enable resolving this issue">
+                [ REQUIRES RE-VALIDATION ]
+              </span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

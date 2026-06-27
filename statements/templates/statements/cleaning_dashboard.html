@@ -1,0 +1,190 @@
+{% extends 'statements/base.html' %}
+{% block title %}Transactions - {{ statement.original_filename }}{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f8fafc;
+  }
+  .btn-back-custom {
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition: all 0.2s ease;
+  }
+  .btn-back-custom:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+  .dashboard-card-custom {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 1.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+  .card-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background-color: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+  .card-content-wrapper {
+    flex-grow: 1;
+  }
+  .card-label-custom {
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    text-transform: capitalize;
+  }
+  .card-value-custom {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+  /* Status/Rating Color Modifiers */
+  .color-clean { color: #10b981 !important; }
+  .color-acceptable { color: #0ea5e9 !important; }
+  .color-qualified { color: #f59e0b !important; }
+  .color-unreliable { color: #ef4444 !important; }
+  
+  /* Red Alert specific card for high severity items (matching Flagged Items style) */
+  .card-danger-custom {
+    background: #fffafb;
+    border-color: #fee2e2;
+  }
+  .card-danger-custom .card-icon-wrapper {
+    background-color: #fee2e2;
+    color: #ef4444;
+  }
+  .card-danger-custom .card-label-custom {
+    color: #dc2626;
+  }
+  .card-danger-custom .card-value-custom {
+    color: #991b1b;
+  }
+
+  /* Action Buttons styling matching the main dashboard 'Upload & Extract' layout */
+  .btn-action-primary {
+    background-color: #030712;
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  .btn-action-primary:hover {
+    background-color: #1f2937;
+    color: #ffffff;
+  }
+  .btn-action-secondary {
+    background-color: #ffffff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+  .btn-action-secondary:hover {
+    background-color: #f9fafb;
+    color: #111827;
+  }
+</style>
+
+<div class="mb-4">
+  <a href="{% url 'transactions' statement.id %}" class="btn btn-back-custom btn-sm text-decoration-none d-inline-flex align-items-center gap-1">
+    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/></svg>
+    Back to Transactions
+  </a>
+</div>
+
+<div class="mb-4">
+  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">Data Cleaning & Validation</h2>
+  <p class="text-muted small mb-0">{{ statement.original_filename }}</p>
+</div>
+
+<div class="row g-3 mb-5">
+  
+  <div class="col-md-3">
+    <div class="dashboard-card-custom">
+      <div class="card-icon-wrapper">
+        <svg width="20" height="20" fill="currentColor" class="text-secondary" viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 3.315A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.999a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Rating Status</div>
+        <div class="card-value-custom">
+          {% if rating == "CLEAN" %}<span class="color-clean">Clean</span>
+          {% elif rating == "ACCEPTABLE" %}<span class="color-acceptable">Acceptable</span>
+          {% elif rating == "QUALIFIED" %}<span class="color-qualified">Qualified</span>
+          {% else %}<span class="color-unreliable">Unreliable</span>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="dashboard-card-custom">
+      <div class="card-icon-wrapper">
+        <svg width="20" height="20" fill="currentColor" class="text-secondary" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Transactions</div>
+        <div class="card-value-custom">{{ total_transactions }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="dashboard-card-custom card-danger-custom">
+      <div class="card-icon-wrapper">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.146.146 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.163.163 0 0 1-.054.06.116.116 0 0 1-.066.017H1.146a.115.115 0 0 1-.066-.017.163.163 0 0 1-.054-.06.176.176 0 0 1 .002-.183L7.884 2.073a.147.147 0 0 1 .054-.057zm1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566z"/><path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div class="card-label-custom">Critical Issues</div>
+        <div class="card-value-custom">{{ critical_count }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="dashboard-card-custom" style="background: #fffdfa; border-color: #fef3c7;">
+      <div class="card-icon-wrapper" style="background-color: #fef3c7; color: #d97706;">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/></svg>
+      </div>
+      <div class="card-content-wrapper">
+        <div style="color: #b45309;" class="card-label-custom">High Issues</div>
+        <div style="color: #78350f;" class="card-value-custom">{{ high_count }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex gap-3">
+  <a href="{% url 'cleaning_issues' statement.id %}" class="btn btn-action-primary text-decoration-none">
+    Review Issues ({{ critical_count }} critical, {{ high_count }} high)
+  </a>
+  <a href="{% url 'export_cleaned' statement.id %}" class="btn btn-action-secondary text-decoration-none">
+    Export Cleaned Data
+  </a>
+</div>
+{% endblock %}

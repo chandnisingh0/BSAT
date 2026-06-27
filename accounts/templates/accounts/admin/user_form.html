@@ -1,0 +1,30 @@
+<!-- {% extends "accounts/admin/_base_admin.html" %}
+{% block title %}Create User{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<h1>Create user</h1>
+<div class="subtitle">A temporary password will be generated and shown once. The user must change it on first login.</div>
+
+<div class="panel form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="field">
+            <label>Full name</label>
+            {{ form.full_name }}
+            {% for e in form.full_name.errors %}<div style="color:#b91c1c;font-size:12px;margin-top:4px;">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="field">
+            <label>Email address</label>
+            {{ form.email }}
+            {% for e in form.email.errors %}<div style="color:#b91c1c;font-size:12px;margin-top:4px;">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="field">
+            <label>Role</label>
+            {{ form.role }}
+        </div>
+        <button type="submit" class="btn btn-primary">Create user</button>
+        <a href="{% url 'admin_user_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %} -->

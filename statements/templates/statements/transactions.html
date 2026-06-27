@@ -1,0 +1,763 @@
+{% extends 'statements/base.html' %}
+{% block title %}Transactions - {{ statement.original_filename }}{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Back Link & Navigation Heading Hierarchy */
+  .premium-back-link {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: color 0.15s ease;
+    margin-bottom: 1rem;
+  }
+  .premium-back-link:hover {
+    color: var(--text-main);
+  }
+  
+  .enterprise-page-header {
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    color: #0f172a;
+    margin-bottom: 0.4rem;
+  }
+  
+  .statement-meta-strip {
+    font-size: 0.82rem;
+    color: #475569;
+    letter-spacing: -0.1px;
+    margin-bottom: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+  .meta-divider {
+    color: #cbd5e1;
+  }
+
+  /* Dimensional Isometric Metric Cards Grid */
+  .txn-summary-row {
+    margin-bottom: 2rem;
+  }
+  
+  .summary-3d-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(145deg, #ffffff, #fbfcfe);
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.02), 0 4px 12px -2px rgba(15, 23, 42, 0.01);
+  }
+  
+  .summary-3d-icon-container {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  
+  .summary-3d-depth-layer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    z-index: 1;
+    transform: rotate(6deg) translateY(2px);
+  }
+  .summary-depth-blue { background: #071324; opacity: 0.08; transform: rotate(-6deg) translateY(2px); }
+  .summary-depth-red { background: #dc2626; opacity: 0.12; }
+  .summary-depth-green { background: #16a34a; opacity: 0.12; }
+  .summary-depth-gold { background: #c5a059; opacity: 0.22; }
+
+  .summary-3d-top-badge {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 4px 12px rgba(15, 23, 42, 0.04), inset 0 1px 2px #ffffff;
+    z-index: 2;
+  }
+
+  .summary-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .summary-value {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+    margin-top: 2px;
+  }
+  .summary-value.debit-val { color: #b91c1c; }
+  .summary-value.credit-val { color: #15803d; }
+  .summary-value.date-range-text { font-size: 0.85rem; font-weight: 500; margin-top: 6px; color: #334155; }
+
+  /* Premium Filter Panel Customization */
+  .enterprise-filter-bar {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  
+  .filter-input-search {
+    min-width: 260px;
+  }
+  
+  .enterprise-filter-bar select,
+  .enterprise-filter-bar input[type="text"],
+  .enterprise-filter-bar input[type="date"] {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    color: #0f172a;
+    outline: none;
+    transition: all 0.15s ease;
+  }
+  
+  .enterprise-filter-bar select:focus,
+  .enterprise-filter-bar input:focus {
+    border-color: #071324;
+    box-shadow: 0 0 0 3px rgba(7, 19, 36, 0.06);
+  }
+
+  .btn-filter-action {
+    background: #071324;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    border: 1px solid #071324;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .btn-filter-action:hover {
+    background: #112540;
+    border-color: #112540;
+    color: #ffffff;
+  }
+
+  .btn-filter-reset {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-filter-reset:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+
+  /* Financial Statement Data Table Overhaul */
+  .table-workspace-wrap {
+    background: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+
+  .premium-bank-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+  }
+
+  .premium-bank-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+  }
+
+  .premium-bank-table td {
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+
+  .premium-bank-table tr:hover td {
+    background-color: #fdfdfd;
+  }
+
+  /* Micro Components: Numeric alignments, Badges, and Flags */
+  .premium-bank-table td.num-financial {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: #0f172a;
+  }
+  .num-financial.debit-glow { color: #b91c1c; }
+  .num-financial.credit-glow { color: #16a34a; }
+
+  .mode-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2rem 0.45rem;
+    border-radius: 4px;
+    letter-spacing: 0.2px;
+  }
+  .badge-neft, .badge-rtgs { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .badge-imps, .badge-upi { background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+  .badge-cash { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+  .badge-chq { background-color: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+  .badge-fallback { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+  .bal-type-indicator {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+  }
+  .type-cr { background-color: #ecfdf5; color: #065f46; }
+  .type-dr { background-color: #fff5f5; color: #991b1b; }
+
+  .quality-flag-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border-radius: 4px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+  }
+
+  /* Clean Pagination Ribbon */
+  .premium-pagination-container {
+    padding: 1.25rem 1rem;
+    background: #ffffff;
+    border-top: 1px solid #eef2f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .pagination-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .pagination-nav-group a, 
+  .pagination-nav-group .disabled-item {
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .pagination-nav-group a {
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    transition: all 0.15s ease;
+  }
+  .pagination-nav-group a:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+
+  .pagination-nav-group .disabled-item {
+    color: #cbd5e1;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: not-allowed;
+  }
+
+  .pagination-status-text {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #334155;
+  }
+
+  .pagination-counter-summary {
+    font-size: 0.78rem;
+    color: #64748b;
+  }
+
+  .no-records-view {
+    padding: 4rem 2rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.88rem;
+  }
+</style>
+<style>
+  .extraction-progress-banner {
+    background: #fffaf0;
+    border: 1px solid #f6c453;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+  }
+
+  .live-row-ticker {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 0.8rem;
+    color: #166534;
+  }
+  .live-row-ticker .ticker-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px solid #dcfce7;
+  }
+  .live-row-ticker .ticker-row:last-child { border-bottom: none; }
+
+  /* Toast notification, top-right corner */
+  #toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .toast-success-card {
+    background: #ffffff;
+    border-left: 4px solid #16a34a;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    padding: 14px 18px;
+    min-width: 300px;
+    max-width: 380px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: toastSlideIn 0.3s ease;
+  }
+  .toast-success-card.toast-fail { border-left-color: #dc2626; }
+  .toast-success-card .toast-icon { font-size: 1.3rem; color: #16a34a; }
+  .toast-success-card.toast-fail .toast-icon { color: #dc2626; }
+  .toast-success-card .toast-title { font-weight: 600; font-size: 0.88rem; color: #0f172a; }
+  .toast-success-card .toast-body { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+  .toast-close-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; margin-left: auto; }
+
+  @keyframes toastSlideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes toastFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; transform: translateX(20px); }
+  }
+
+  /* Micro Utilities for Action Buttons */
+  .btn-action-sm {
+    padding: 0.4rem 0.85rem !important;
+    font-size: 0.8rem !important;
+  }
+
+  .btn-action-danger {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+
+  .btn-action-danger:hover {
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+    color: #ffffff;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="enterprise-page-header m-0">Statement Actions</h2>
+  
+  <div class="d-flex gap-2">
+    <a href="{% url 'cleaning_dashboard' statement.id %}" 
+       class="btn btn-filter-action btn-action-sm d-inline-flex align-items-center gap-1" 
+       data-bs-toggle="tooltip" 
+       data-bs-placement="top" 
+       title="Identify anomalies, structure text, and validate records within the statement">
+      <i class="bi bi-shield-check"></i> Clean & Validate
+    </a>
+    
+    <a href="{% url 'beneficiary_dashboard' statement.id %}" 
+       class="btn btn-filter-reset btn-action-sm d-inline-flex align-items-center gap-1" 
+       data-bs-toggle="tooltip" 
+       data-bs-placement="top" 
+       title="Analyze counterparty entities, high-value transfer targets, and volume metrics">
+      <i class="bi bi-people"></i> Beneficiaries
+    </a>
+    
+    <a href="{% url 'confirm_delete_statement' statement.id %}" 
+       class="btn btn-action-danger btn-action-sm d-inline-flex align-items-center gap-1" 
+       data-bs-toggle="tooltip" 
+       data-bs-placement="top" 
+       title="Permanently remove this bank statement and all associated ledger records">
+      <i class="bi bi-trash"></i> Delete
+    </a>
+  </div>
+</div>
+
+{% if statement.extraction_status == "processing" or statement.extraction_status == "pending" %}
+<div id="extraction-progress-banner" class="extraction-progress-banner">
+    <div class="d-flex align-items-center gap-3">
+        <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+        <div class="flex-grow-1">
+            <div class="fw-semibold" id="extraction-status-text">Extraction in progress&hellip;</div>
+            <div class="text-secondary small" id="extraction-rows-text">Waiting for first batch&hellip;</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div id="live-row-ticker" class="live-row-ticker" style="display:none;"></div>
+
+  <a href="{% url 'upload' %}" class="premium-back-link">
+    <i class="bi bi-arrow-left"></i> Workspace Dashboards
+  </a>
+  <h1 class="enterprise-page-header">{{ statement.original_filename }}</h1>
+  
+  <div class="statement-meta-strip">
+    <span>Account Workspace: <strong>{{ statement.account }}</strong></span>
+    <span class="meta-divider">&middot;</span>
+    <span>Schema Format: <strong>{{ statement.get_file_type_display }}</strong></span>
+    <span class="meta-divider">&middot;</span>
+    <span>Source Total Logs: <strong>{{ statement.rows_extracted }} Rows</strong></span>
+    {% if statement.notes %}
+      <span class="meta-divider">&middot;</span>
+      <span class="text-secondary">{{ statement.notes }}</span>
+    {% endif %}
+  </div>
+
+  <div class="row g-3 txn-summary-row">
+    <div class="col-sm-6 col-xl-3">
+      <div class="summary-3d-card d-flex align-items-center gap-3">
+        <div class="summary-3d-icon-container">
+          <div class="summary-3d-depth-layer summary-depth-blue"></div>
+          <div class="summary-3d-top-badge"><i class="bi bi-database text-dark"></i></div>
+        </div>
+        <div>
+          <div class="summary-label">Total Volume</div>
+          <div class="summary-value">{{ statement.rows_extracted }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="summary-3d-card d-flex align-items-center gap-3">
+        <div class="summary-3d-icon-container">
+          <div class="summary-3d-depth-layer summary-depth-red"></div>
+          <div class="summary-3d-top-badge"><i class="bi bi-arrow-up-right text-danger"></i></div>
+        </div>
+        <div>
+          <div class="summary-label">Aggregate Outflow</div>
+          <div class="summary-value debit-val">{{ total_debit|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="summary-3d-card d-flex align-items-center gap-3">
+        <div class="summary-3d-icon-container">
+          <div class="summary-3d-depth-layer summary-depth-green"></div>
+          <div class="summary-3d-top-badge"><i class="bi bi-arrow-down-left text-success"></i></div>
+        </div>
+        <div>
+          <div class="summary-label">Aggregate Inflow</div>
+          <div class="summary-value credit-val">{{ total_credit|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="summary-3d-card d-flex align-items-center gap-3">
+        <div class="summary-3d-icon-container">
+          <div class="summary-3d-depth-layer summary-depth-gold"></div>
+          <div class="summary-3d-top-badge"><i class="bi bi-calendar3" style="color: var(--brand-gold);"></i></div>
+        </div>
+        <div>
+          <div class="summary-label">Audited Window</div>
+          <div class="summary-value date-range-text">{{ date_from|date:"d M Y" }} &ndash; {{ date_to|date:"d M Y" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form method="get" class="enterprise-filter-bar d-flex flex-wrap align-items-center gap-2">
+    <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Search description or counterparty..." class="filter-input-search flex-grow-1">
+    
+    <select name="mode">
+        <option value="">All Clearing Methods</option>
+        <option value="NEFT"  {% if request.GET.mode == "NEFT"  %}selected{% endif %}>NEFT Architecture</option>
+        <option value="RTGS"  {% if request.GET.mode == "RTGS"  %}selected{% endif %}>RTGS Transfer</option>
+        <option value="IMPS"  {% if request.GET.mode == "IMPS"  %}selected{% endif %}>IMPS Settlement</option>
+        <option value="CASH"  {% if request.GET.mode == "CASH"  %}selected{% endif %}>Counter Cash Cashier</option>
+        <option value="UPI"   {% if request.GET.mode == "UPI"   %}selected{% endif %}>UPI Ecosystem</option>
+        <option value="CHQ"   {% if request.GET.mode == "CHQ"   %}selected{% endif %}>Clearing Cheque</option>
+    </select>
+    
+    <select name="direction">
+        <option value="">All Ledgers (Dr/Cr)</option>
+        <option value="debit"  {% if request.GET.direction == "debit"  %}selected{% endif %}>Debit Outflows only</option>
+        <option value="credit" {% if request.GET.direction == "credit" %}selected{% endif %}>Credit Inflows only</option>
+    </select>
+    
+    <input type="date" name="from_date" value="{{ request.GET.from_date }}" title="From Value Date">
+    <input type="date" name="to_date"   value="{{ request.GET.to_date }}" title="To Value Date">
+    
+    <button type="submit" class="btn-filter-action">Apply Filters</button>
+    <a href="?" class="btn-filter-reset text-center">Reset</a>
+  </form>
+
+  <div class="table-workspace-wrap">
+    {% if txns %}
+    <div class="table-responsive">
+      <table class="premium-bank-table">
+        <thead>
+        <tr>
+            <th>Idx</th>
+            <th>Booking Date</th>
+            <th>Value Date</th>
+            <th>Time <small class="text-muted d-block" style="font-size: 0.7rem;">Formatted / Raw</small></th>
+            <th>Type</th>
+            <th>Narration / String Base</th>
+            <th>Counterparty Entity</th>
+            <th class="text-end">Debit Allocation</th>
+            <th class="text-end">Credit Allocation</th>
+            <th class="text-end">Running Balance</th>
+            <th class="text-center">Ind</th>
+            <th>Reference ID</th>
+            <th>Flag Status</th>
+            <th class="text-center">Action</th>  
+        </tr>
+        </thead>
+        <tbody>
+        {% for t in txns %}
+        <tr>
+            <td>{{ t.source_row }}</td>
+            <td class="text-nowrap">{{ t.txn_date|date:"d M Y" }}</td>
+            <td class="text-nowrap">{{ t.value_date|date:"d M Y"|default:"&mdash;" }}</td>
+            
+            <td class="text-nowrap">
+                <div>{{ t.txn_time|default:"&mdash;" }}</div>
+                <small class="font-monospace text-muted d-block" style="font-size: 0.75rem;">{{ t.txn_time|time:"H:i"|default:"&mdash;" }}</small>
+            </td>
+
+            <td>
+                {% if t.txn_mode %}
+                    <span class="mode-badge badge-{{ t.txn_mode|lower }}">{{ t.txn_mode }}</span>
+                {% else %}
+                    <span class="mode-badge badge-fallback">&mdash;</span>
+                {% endif %}
+            </td>
+            <td>{{ t.narration_raw }}</td>
+            <td class="fw-medium text-dark">{{ t.counterparty_name|default:"&mdash;" }}</td>
+            <td class="num-financial debit-glow">{% if t.debit %}{{ t.debit|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
+            <td class="num-financial credit-glow">{% if t.credit %}{{ t.credit|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
+            <td class="num-financial">{% if t.balance %}{{ t.balance|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
+            <td class="text-center">
+                {% if t.balance_type == "Cr" %}<span class="bal-type-indicator type-cr">Cr</span>
+                {% elif t.balance_type == "Dr" %}<span class="bal-type-indicator type-dr">Dr</span>
+                {% else %}&mdash;{% endif %}
+            </td>
+            <td class="font-monospace text-secondary" style="font-size: 0.75rem;">{{ t.reference|default:"&mdash;" }}</td>
+            <td>
+                {% if t.quality_flag %}
+                  <span class="quality-flag-badge">{{ t.quality_flag }}</span>
+                {% else %}
+                  <span class="text-muted">&mdash;</span>
+                {% endif %}
+            </td>
+
+             <!-- NEW: ACTION COLUMN WITH DELETE BUTTON -->
+            <td class="text-center">
+                <form method="post" action="{% url 'delete_transaction' statement.id t.id %}" 
+                      style="display: inline;" 
+                      onsubmit="return confirm('Delete this transaction? This action cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete this transaction">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="premium-pagination-container">
+        <div class="pagination-counter-summary">
+            Showing <strong>{{ txns.start_index }}</strong>&ndash;<strong>{{ txns.end_index }}</strong> of {{ txns.paginator.count }} operational ledger logs
+        </div>
+        
+        <div class="pagination-status-text">
+            <span class="text-secondary fw-normal">Page</span> {{ txns.number }} <span class="text-secondary fw-normal">of</span> {{ txns.paginator.num_pages }}
+        </div>
+
+        <div class="pagination-nav-group">
+            {% if txns.has_previous %}
+                <a href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.mode %}&mode={{ request.GET.mode }}{% endif %}{% if request.GET.direction %}&direction={{ request.GET.direction }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}">&laquo; Universal First</a>
+                <a href="?page={{ txns.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.mode %}&mode={{ request.GET.mode }}{% endif %}{% if request.GET.direction %}&direction={{ request.GET.direction }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}">&lsaquo; Prev Block</a>
+            {% else %}
+                <span class="disabled-item">&laquo; Universal First</span>
+                <span class="disabled-item">&lsaquo; Prev Block</span>
+            {% endif %}
+
+            {% if txns.has_next %}
+                <a href="?page={{ txns.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.mode %}&mode={{ request.GET.mode }}{% endif %}{% if request.GET.direction %}&direction={{ request.GET.direction }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}">Next Segment &rsaquo;</a>
+                <a href="?page={{ txns.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.mode %}&mode={{ request.GET.mode }}{% endif %}{% if request.GET.direction %}&direction={{ request.GET.direction }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}">Terminal Last &raquo;</a>
+            {% else %}
+                <span class="disabled-item">Next Segment &rsaquo;</span>
+                <span class="disabled-item">Terminal Last &raquo;</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <div class="no-records-view">
+        <i class="bi bi-search fs-3 mb-2 d-block text-muted"></i>
+        No structural transactions verified matching the specific filter criteria parameters.
+    </div>
+    {% endif %}
+</div>
+
+
+<script>
+(function() {
+    const statementId = {{ statement.id }};
+    const extractionStatus = "{{ statement.extraction_status }}";
+
+    function showToast(title, body, isError) {
+        const container = document.getElementById('toast-container');
+        const card = document.createElement('div');
+        card.className = 'toast-success-card' + (isError ? ' toast-fail' : '');
+        card.innerHTML = `
+            <div class="toast-icon">${isError ? '⚠️' : '✅'}</div>
+            <div class="flex-grow-1">
+                <div class="toast-title">${title}</div>
+                <div class="toast-body">${body}</div>
+            </div>
+            <button class="toast-close-btn" onclick="this.closest('.toast-success-card').remove()">&times;</button>
+        `;
+        container.appendChild(card);
+        setTimeout(() => {
+            card.style.animation = 'toastFadeOut 0.3s ease forwards';
+            setTimeout(() => card.remove(), 300);
+        }, 6000);
+    }
+
+    // Only open a WebSocket if extraction is actually in progress
+    if (extractionStatus === "processing" || extractionStatus === "pending") {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(`${protocol}//${window.location.host}/ws/statement/${statementId}/`);
+
+        const banner = document.getElementById('extraction-progress-banner');
+        const statusText = document.getElementById('extraction-status-text');
+        const rowsText = document.getElementById('extraction-rows-text');
+        const ticker = document.getElementById('live-row-ticker');
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+
+            if (data.event === "started") {
+                statusText.textContent = data.message;
+            }
+
+            else if (data.event === "progress") {
+                rowsText.textContent = `${data.rows_so_far} transactions extracted so far...`;
+                ticker.style.display = 'block';
+                ticker.innerHTML = '<strong>Latest rows:</strong>';
+                (data.latest_rows || []).forEach(r => {
+                    const row = document.createElement('div');
+                    row.className = 'ticker-row';
+                    const amt = r.debit ? `-${r.debit}` : (r.credit ? `+${r.credit}` : '');
+                    row.innerHTML = `<span>${r.txn_date || ''} — ${(r.narration_raw || '').slice(0,40)}</span><span>${amt}</span>`;
+                    ticker.appendChild(row);
+                });
+            }
+
+            else if (data.event === "completed") {
+                if (banner) banner.remove();
+                ticker.style.display = 'none';
+                showToast(
+                    "Extraction complete",
+                    data.message || `${data.rows_total} transactions extracted.`,
+                    false
+                );
+                socket.close();
+                // Reload after a short pause so the user sees the toast, then sees full data
+                setTimeout(() => window.location.reload(), 1800);
+            }
+
+            else if (data.event === "failed") {
+                if (banner) {
+                    banner.querySelector('.spinner-border').remove();
+                    statusText.textContent = "Extraction failed";
+                    statusText.style.color = "#dc2626";
+                }
+                showToast("Extraction failed", data.message || "An error occurred.", true);
+                socket.close();
+            }
+        };
+
+        socket.onerror = function() {
+            console.warn("WebSocket connection error — falling back to manual refresh.");
+        };
+    }
+})();
+</script>
+<script>
+  // Bootstrap Tooltips Initialization
+  document.addEventListener("DOMContentLoaded", function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+  });
+</script>
+{% endblock %}

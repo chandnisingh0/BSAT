@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions — {{ statement.original_filename }}</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; }
+        h1 { font-size: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; }
+        th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; }
+        th { background: #f7fafc; }
+        td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .flag { color: #c05621; font-size: 11px; }
+        .meta { color: #666; font-size: 13px; }
+        a { color: #2b6cb0; }
+    </style>
+</head>
+<body>
+    <p><a href="{% url 'upload' %}">&larr; Back to upload</a></p>
+    <h1>{{ statement.original_filename }}</h1>
+    <p class="meta">
+        Account: {{ statement.account }} &middot;
+        Type: {{ statement.get_file_type_display }} &middot;
+        Rows: {{ statement.rows_extracted }}<br>
+        {{ statement.notes }}
+    </p>
+
+    <table>
+        <tr>
+            <th>#</th><th>Date</th><th>Narration</th>
+            <th>Debit</th><th>Credit</th><th>Balance</th><th>Ref</th><th>Flag</th>
+        </tr>
+        {% for t in txns %}
+        <tr>
+            <td>{{ t.source_row }}</td>
+            <td>{{ t.txn_date|date:"d/m/Y" }}</td>
+            <td>{{ t.narration_raw }}</td>
+            <td class="num">{{ t.debit|default_if_none:"" }}</td>
+            <td class="num">{{ t.credit|default_if_none:"" }}</td>
+            <td class="num">{{ t.balance|default_if_none:"" }}</td>
+            <td>{{ t.reference }}</td>
+            <td class="flag">{{ t.quality_flag }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

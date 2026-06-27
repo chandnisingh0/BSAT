@@ -1,0 +1,24 @@
+{% extends "accounts/admin/_base_admin.html" %}
+{% block title %}Add Account{% endblock %}
+{% block nav_engagements %}active{% endblock %}
+
+{% block content %}
+<h1>Add bank account</h1>
+<div class="subtitle">Adding to engagement: <strong>{{ engagement.name }}</strong></div>
+
+<div class="panel form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="field"><label>Corporate Debtor name</label>{{ form.cd_name }}</div>
+        <div class="field"><label>Bank name</label>{{ form.bank_name }}</div>
+        <div class="field"><label>Account number</label>{{ form.account_number }}</div>
+        <div class="field">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:400;">
+                {{ form.is_cd_account }} This is a Corporate Debtor account
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Add account</button>
+        <a href="{% url 'admin_engagement_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

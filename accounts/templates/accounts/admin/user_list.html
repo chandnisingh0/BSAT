@@ -1,0 +1,149 @@
+{% extends "statements/base.html" %}
+
+{% block title %}Tracecore Consulting - User Management{% endblock %}
+{% block nav_users_active %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold text-dark m-0">User Management</h4>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            {{ users.count }} user(s) total &middot; no self-registration permitted
+        </div>
+    </div>
+    <button type="button" class="btn btn-action-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+        <i class="bi bi-person-plus me-1"></i> Create User
+    </button>
+</div>
+
+<div class="classic-dash-card p-0 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+            <thead class="table-light" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <tr>
+                    <th class="ps-4 py-3 text-secondary">Name</th>
+                    <th class="py-3 text-secondary">Email</th>
+                    <th class="py-3 text-secondary">Role</th>
+                    <th class="py-3 text-secondary">Status</th>
+                    <th class="py-3 text-secondary">Must Change Pwd</th>
+                    <th class="py-3 text-secondary">Created</th>
+                    <th class="pe-4 py-3 text-end text-secondary">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td class="ps-4 fw-semibold text-dark">{{ u.full_name }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        {% if u.role == 'admin' %}
+                            <span class="badge bg-danger-subtle text-danger pill-badge">Admin</span>
+                        {% else %}
+                            <span class="badge bg-primary-subtle text-primary pill-badge">{{ u.get_role_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                            <span class="badge bg-success-subtle text-success pill-badge">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary pill-badge">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.must_change_password %}
+                            <span class="text-danger fw-medium"><i class="bi bi-exclamation-circle me-1"></i> Yes</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.created_at|date:"d M Y" }}</td>
+                    <td class="pe-4 text-end">
+                        <a href="{% url 'admin_user_detail' u.id %}" class="btn btn-action-outline py-1 px-3" style="font-size: 0.78rem;">
+                            <i class="bi bi-gear me-1"></i> Manage
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header border-0 pt-4 px-4 pb-2">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark" id="createUserModalLabel">Create New User</h5>
+                    <p class="text-muted mb-0 small" style="font-size: 0.75rem;">Temporary credentials will be auto-generated.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form method="post" action="{% url 'admin_user_list' %}">
+                {% csrf_token %}
+                <div class="modal-body px-4 py-2">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Full Name</label>
+                        {{ form.full_name }}
+                        {% if form.full_name.errors %}<div class="text-danger small mt-1">{{ form.full_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Email Address</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">System Role</label>
+                        {{ form.role }}
+                        {% if form.role.errors %}<div class="text-danger small mt-1">{{ form.role.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-action-outline m-0" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-action-primary m-0">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if display_temp_pwd %}
+<div class="modal fade" id="passwordAlertModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div class="modal-body p-4 text-center">
+                <div class="text-warning mb-3"><i class="bi bi-shield-lock-fill" style="font-size: 3rem;"></i></div>
+                <h5 class="fw-bold text-dark mb-2">Temporary Credentials Generated</h5>
+                <p class="text-muted small">Please securely copy this configuration below. For security protocols, this password **will not be shown again**.</p>
+                
+                <div class="p-3 my-3 bg-light rounded-3 border border-warning-subtle text-start">
+                    <div class="mb-1 small"><strong>User Account:</strong> <code class="text-dark">{{ display_user_email }}</code></div>
+                    <div class="small"><strong>Temporary Password:</strong> <code class="text-danger fs-6 fw-bold">{{ display_temp_pwd }}</code></div>
+                </div>
+                
+                <button type="button" class="btn btn-action-primary w-100 mt-2" data-bs-dismiss="modal">I Have Safely Saved It</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Automatically re-open input modal if backend processing reports form errors
+        {% if show_user_modal %}
+            const createUserModal = new bootstrap.Modal(document.getElementById('createUserModal'));
+            createUserModal.show();
+        {% endif %}
+
+        // Pop up the secure temporary password modal alert layer instantly post creation 
+        {% if display_temp_pwd %}
+            const passwordAlertModal = new bootstrap.Modal(document.getElementById('passwordAlertModal'));
+            passwordAlertModal.show();
+        {% endif %}
+    });
+</script>
+{% endblock %}
