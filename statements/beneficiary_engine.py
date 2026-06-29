@@ -19,15 +19,120 @@ class BeneficiaryEngine:
     """Identifies beneficiaries from transaction narrations."""
     
     # Layer 1: Patterns for structured narrations
+    # PATTERNS = {
+    #     # NEFT/RTGS: "NEFT-Full Name Here" or "RTGSNIRMAL LIFESTYLE LTD"
+    #     'neft_rtgs': r'(?:NEFT|RTGS)[-\s]+([A-Za-z\s]+?)(?:\s+A/C|\s+LTD|$|/)',
+        
+    #     # IMPS: "IMPS-Name Here"
+    #     'imps': r'IMPS[-\s]+([A-Za-z\s]+?)(?:$|/)',
+        
+    #     # UPI: "UPI-Name Here"
+    #     'upi': r'UPI[-\s]+([A-Za-z\s]+?)(?:$|/)',
+        
+    #     # Cheque: "CHQ NO 12345 Full Name Here"
+    #     'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+([A-Za-z\s]+?)(?:$|/)',
+        
+    #     # BY: "BY Full Name Here"
+    #     'by_credit': r'BY\s+([A-Za-z\s]+?)(?:$|/)',
+        
+    #     # Account number
+    #     'account_number': r'(\d{7,18})',
     PATTERNS = {
-        'neft_rtgs': r'(?:NEFT|RTGS)[/\s]*(?:.*?)[/\s](.+?)[/\s]',
-        'imps': r'IMPS[/\s]*(?:.*?)[/\s](.+?)(?:[/\s]|$)',
-        'upi': r'UPI[/\s]*(?:.*?)[/\s](.+?)[/\s]',
-        'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+(.+?)(?:$|\s*-)',
-        'by_credit': r'BY\s+(.+?)(?:$|\s*-)',
+        # ── IMPS slash-delimited: IMPS/UTR/NAME/ACCOUNT/...
+        # e.g. IMPS/609544947606/NEW SADHI MOBILE AND ELECTRONICS/7874223322/...
+        # Captures field 3 (the human name) — skips UTR (all digits) and junk like 'Unregistered'
+        'imps_slash': r'IMPS/\d+/(?!Unregistered)([A-Za-z][A-Za-z\s&\.\-]+?)/',
+
+        # ── BillDesk payments: Bill Payment/BillDesk/IFSC.../ref.../MOB/null
+        # e.g. Bill Payment/BillDesk/ICIC00000NATSI/6096 19239590/MOB/null
+        # Counterparty = IFSC bank code (ICIC00000NATSI → ICICI Bank)
+        'billdesk': r'Bill\s+Payment/BillDesk/([A-Z]{4}\d*[A-Z0-9]+?)/',
+
+        # ── HIGHLY STRUCTURED MULTI-FIELD PATTERNS (PDFs / Advanced statements) ──
+        # e.g. IMPS:331306183624:059621010000023:DUNESTUDYABROAD
+        # e.g. RTGS/UBINR22025032101058301/COHERENT RMC PRIV
+        # e.g. CLG/573818/ANURADHA CHAVAN/THE MUNCIPAL CO-OP.BANK
+        # e.g. IB/RTGS/SRCBH23339232404/NIRMAL MA/Transfer
+        'structured_colon_slash': r'(?:RTGS|NEFT|CLG|IB/RTGS|IB/NEFT)(?:[:/][A-Z0-9]+)+[:/]([A-Za-z][A-Za-z\s\.&\-]+?)(?:[:/]|$)',
+
+        # ── STANDARD SPACE/HYPHEN FORMATS (RPTs / Basic statements) ──────────────
+        # e.g. NEFT 000520293131 DAMODAR LAXMINARAYAN HEGDE.
+        # e.g. RTGSALI ASGAR IQBALHDFCR520190
+        'neft_rtgs': r'(?:NEFT|RTGS)[-\s]*(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:\s+A/C|\s+LTD|[-\d/]|$)',
+
+        # By Inst (e.g. By Inst.6/HDFCBANK/)
+        'inst': r'By\s*Inst\.?\s*[\d]+/?([A-Za-z][A-Za-z\s\.&\-]+?)(?:/|$)',
+
+        # IMPS standard (colon or space-separated, non-slash format)
+        'imps': r'IMPS[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:[-\d/]|$)',
+
+        # UPI
+        'upi': r'UPI[-\s/]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s/]+)?(?:[A-Za-z0-9@\.\-_]+[-\s/]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:[-\d/]|$)',
+
+        # BY [BENEFICIARY NAME] or BY TRF [BENEFICIARY NAME]
+        'by_credit': r'^BY\s+(?:TRF\s+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:$|/|[-\d])',
+
+        # IB/NEFT fallback
+        'ib_neft': r'(?:IB/NEFT|IB|NEFT)/[A-Z0-9]+/([A-Za-z][A-Za-z\s\.&\-]+?)(?:/|$)',
+
+        # Generic company names
+        'company_name': r'([A-Za-z\s]+(?:PVT|LTD|PRIVATE|LIMITED|CORP|CORPORATION)(?:\s+LTD)?)',
+
+        # Dash or special character prefixed names (e.g. --MAHARASHTRA STATE ELECTR)
+        'dash_prefix': r'^[-:\s]+([A-Za-z][A-Za-z\s\.&\-]+?)(?:$)',
+
+        # Full names (catch-all for narrations that are purely a name)
+        'full_name': r'^([A-Za-z][A-Za-z\s\.&\-]{2,})$',
+
+        # Cheque
+        'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+([A-Za-z][A-Za-z\s\.&\-]+?)(?:$|/)',
+
+        # Account number
         'account_number': r'(\d{7,18})',
     }
     
+    # --- PREVIOUS CODE (Kept for safety) ---
+    # PATTERNS = {
+    #     # NEFT/RTGS with full name (handles optional alphanumeric UTR before or after the name, and allows missing spaces)
+    #     'neft_rtgs': r'(?:NEFT|RTGS)[-\s]*(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z\s]+?)(?:\s+A/C|\s+LTD|[-\d/]|$)',
+    #     'inst': r'By\s*Inst\.?\s*[\d]+/?([A-Za-z\s]+?)(?:/|$)',
+    #     'imps': r'IMPS[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z\s]+?)(?:[-\d/]|$)',
+    #     'upi': r'UPI[-\s/]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s/]+)?(?:[A-Za-z0-9@\.\-_]+[-\s/]+)?([A-Za-z\s]+?)(?:[-\d/]|$)',
+    #     'by_credit': r'^BY[-\s]+([A-Za-z\s]+?)(?:$|/|[-\d])',
+    #     'company_name': r'([A-Za-z\s]+(?:PVT|LTD|PRIVATE|LIMITED|CORP|CORPORATION)(?:\s+LTD)?)',
+    #     'ib_neft': r'(?:IB/NEFT|IB|NEFT)/[A-Z0-9]+/([A-Za-z\s]+?)(?:/|$)',
+    #     'full_name': r'^([A-Za-z\s\.]{3,})$',
+    #     'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+([A-Za-z\s]+?)(?:$|/)',
+    #     'account_number': r'(\d{7,18})',
+    # }
+    
+    # --- PREVIOUS CODE (Kept for safety) ---
+    # PATTERNS = {
+    #     # NEFT/RTGS with full name (handles optional alphanumeric UTR before or after the name)
+    #     'neft_rtgs': r'(?:NEFT|RTGS)[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z\s]+?)(?:\s+A/C|\s+LTD|[-\d/]|$)',
+    #     
+    #     # IMPS
+    #     'imps': r'IMPS[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z\s]+?)(?:[-\d/]|$)',
+    #     
+    #     # UPI
+    #     'upi': r'UPI[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z\s]+?)(?:[-\d/]|$)',
+    #     
+    #     # Generic company names
+    #     'company_name': r'([A-Za-z\s]+(?:PVT|LTD|PRIVATE|LIMITED|CORP|CORPORATION)(?:\s+LTD)?)',
+    #     
+    #     # IB/NEFT pattern (e.g. IB/NEFT/SRCB024111362874/NIRMAL MA/Transfer)
+    #     'ib_neft': r'(?:IB/NEFT|IB|NEFT)/[A-Z0-9]+/([A-Za-z\s]+?)(?:/|$)',
+    #     
+    #     # Full names (catch all for narrations that are just names)
+    #     'full_name': r'^([A-Za-z\s\.]{3,})$',
+    #     
+    #     # Cheque
+    #     'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+([A-Za-z\s]+?)(?:$|/)',
+    #     
+    #     # Account number
+    #     'account_number': r'(\d{7,18})',
+    # }
+
     # Common banking terms to exclude
     EXCLUSION_KEYWORDS = [
         'TRANSFER', 'PAYMENT', 'DEBIT', 'CREDIT', 'BALANCE', 'CHARGES',
@@ -56,22 +161,22 @@ class BeneficiaryEngine:
         self.unresolved = []
     
     # ===== LAYER 1: RULE-BASED EXTRACTION =====
-    
+
     def layer1_extract(self, transaction):
         """Try to extract beneficiary using pattern matching."""
         narration = (transaction.narration_raw or '').strip()
         
-        if not narration or len(narration) < 5:
+        if not narration or len(narration) < 2:
             return None
         
-        # Try each pattern
+        # Try each pattern in order
         for pattern_name, pattern in self.PATTERNS.items():
             try:
                 match = re.search(pattern, narration, re.IGNORECASE)
                 if match:
                     extracted = match.group(1).strip()
                     
-                    # Validate extracted text
+                    # Filter out generic terms
                     if self._is_valid_beneficiary_name(extracted):
                         beneficiary_type = self._classify_beneficiary_type(extracted)
                         confidence = self._calculate_layer1_confidence(pattern_name, narration)
@@ -81,13 +186,45 @@ class BeneficiaryEngine:
                             'beneficiary_type': beneficiary_type,
                             'confidence': confidence,
                             'layer': 'LAYER_1',
-                            'extraction_basis': f'Extracted from {pattern_name} pattern',
+                            'extraction_basis': f'Pattern: {pattern_name}',
                             'pattern_used': pattern_name,
                         }
             except Exception as e:
                 continue
         
         return None
+        
+    # def layer1_extract(self, transaction):
+    #     """Try to extract beneficiary using pattern matching."""
+    #     narration = (transaction.narration_raw or '').strip()
+        
+    #     if not narration or len(narration) < 5:
+    #         return None
+        
+    #     # Try each pattern
+    #     for pattern_name, pattern in self.PATTERNS.items():
+    #         try:
+    #             match = re.search(pattern, narration, re.IGNORECASE)
+    #             if match:
+    #                 extracted = match.group(1).strip()
+                    
+    #                 # Validate extracted text
+    #                 if self._is_valid_beneficiary_name(extracted):
+    #                     beneficiary_type = self._classify_beneficiary_type(extracted)
+    #                     confidence = self._calculate_layer1_confidence(pattern_name, narration)
+                        
+    #                     return {
+    #                         'beneficiary_name': self._normalize_name(extracted),
+    #                         'beneficiary_type': beneficiary_type,
+    #                         'confidence': confidence,
+    #                         'layer': 'LAYER_1',
+    #                         'extraction_basis': f'Extracted from {pattern_name} pattern',
+    #                         'pattern_used': pattern_name,
+    #                     }
+    #         except Exception as e:
+    #             continue
+        
+    #     return None
     
     def _is_valid_beneficiary_name(self, name):
         """Check if extracted name is likely a valid beneficiary."""
@@ -129,12 +266,23 @@ class BeneficiaryEngine:
     def _calculate_layer1_confidence(self, pattern_name, narration):
         """Assign confidence based on pattern and narration quality."""
         confidence_map = {
-            'account_number': 0.95,  # HIGH
-            'neft_rtgs': 0.90,       # HIGH
-            'upi': 0.85,             # HIGH
-            'cheque': 0.80,          # HIGH
-            'by_credit': 0.70,       # MEDIUM
-            'imps': 0.75,            # MEDIUM
+            # Highly structured / fixed position formats — highest confidence
+            'imps_slash': 0.95,          # HIGH — direct name field from IMPS slash format
+            'billdesk': 0.90,            # HIGH — IFSC code uniquely identifies bank/recipient
+            'structured_colon_slash': 0.95, # HIGH
+            'account_number': 0.95,      # HIGH
+            'neft_rtgs': 0.90,           # HIGH
+            'company_name': 0.90,        # HIGH
+            'ib_neft': 0.90,             # HIGH
+
+            # Formats bumped to >= 0.85 so they automatically bypass the review queue
+            'inst': 0.85,                # HIGH
+            'full_name': 0.85,           # HIGH
+            'upi': 0.85,                 # HIGH
+            'cheque': 0.85,              # HIGH
+            'dash_prefix': 0.85,         # HIGH
+            'by_credit': 0.85,           # HIGH
+            'imps': 0.85,                # HIGH
         }
         return confidence_map.get(pattern_name, 0.60)
     

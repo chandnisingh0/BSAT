@@ -38,7 +38,15 @@ class ValidationEngine:
     
     def check_balance_reconciliation(self):
         """Verify Prior Balance + Credit - Debit = Current Balance for each row."""
-        txns = self.statement.transactions.order_by('source_row')
+        # NEW CODE: Process all transactions
+        txns = list(self.statement.transactions.order_by('source_row'))
+        
+        # --- PREVIOUS CODE (Kept for safety) ---
+        # # TEMPORARY TESTING CHANGE: Added list() and [:150] to limit lines for faster testing.
+        # # Remove list() and "[:150]" below to restore normal functionality.
+        # # --- ORIGINAL CODE ---
+        # # txns = self.statement.transactions.order_by('source_row')
+        # txns = list(self.statement.transactions.order_by('source_row')[:150])
         
         for i, txn in enumerate(txns):
             if i == 0:
@@ -87,8 +95,11 @@ class ValidationEngine:
         total_debit = agg['total_debit'] or Decimal(0)
         total_credit = agg['total_credit'] or Decimal(0)
         
-        first_txn = txns.first()
-        last_txn = txns.last()
+        # --- ORIGINAL CODE ---
+        # first_txn = txns.first()
+        # last_txn = txns.last()
+        first_txn = txns[0] if txns else None
+        last_txn = txns[-1] if txns else None
         
         if first_txn and last_txn:
             opening_bal = first_txn.balance or Decimal(0)
@@ -105,12 +116,23 @@ class ValidationEngine:
     
     def check_date_gaps(self):
         """Find gaps > 7 working days."""
+        # NEW CODE: Process all transactions
         txns = self.statement.transactions.order_by('txn_date').values_list('txn_date', flat=True).distinct()
+        txn_dates = sorted(set(t for t in txns if t))
         
-        if len(txns) < 2:
+        # --- PREVIOUS CODE (Kept for safety) ---
+        # # TEMPORARY TESTING CHANGE: Limited to top 150 rows.
+        # # --- ORIGINAL CODE ---
+        # # txns = self.statement.transactions.order_by('txn_date').values_list('txn_date', flat=True).distinct()
+        # # if len(txns) < 2:
+        # #     return
+        # # txn_dates = sorted(set(txns))
+        # 
+        # txns_subset = self.statement.transactions.order_by('source_row')[:150]
+        # txn_dates = sorted(set(t.txn_date for t in txns_subset if t.txn_date))
+        
+        if len(txn_dates) < 2:
             return
-        
-        txn_dates = sorted(set(txns))
         
         for i in range(len(txn_dates) - 1):
             curr_date = txn_dates[i]
@@ -142,7 +164,15 @@ class ValidationEngine:
     
     def check_duplicates(self):
         """Find exact, probable, and near duplicates."""
+        # NEW CODE: Process all transactions
         txns = list(self.statement.transactions.all())
+        
+        # --- PREVIOUS CODE (Kept for safety) ---
+        # # TEMPORARY TESTING CHANGE: Added .order_by('source_row')[:150] for faster testing.
+        # # Remove .order_by('source_row')[:150] to restore normal functionality.
+        # # --- ORIGINAL CODE ---
+        # # txns = list(self.statement.transactions.all())
+        # txns = list(self.statement.transactions.order_by('source_row')[:150])
         
         checked = set()
         
@@ -236,7 +266,15 @@ class ValidationEngine:
     
     def check_narration_quality(self):
         """Flag blank, generic, or low-quality narrations."""
+        # NEW CODE: Process all transactions
         txns = self.statement.transactions.all()
+        
+        # --- PREVIOUS CODE (Kept for safety) ---
+        # # TEMPORARY TESTING CHANGE: Added .order_by('source_row')[:150] for faster testing.
+        # # Remove .order_by('source_row')[:150] to restore normal functionality.
+        # # --- ORIGINAL CODE ---
+        # # txns = self.statement.transactions.all()
+        # txns = self.statement.transactions.order_by('source_row')[:150]
         
         for txn in txns:
             narration = (txn.narration_raw or '').strip()
