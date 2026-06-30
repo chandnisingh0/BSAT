@@ -107,6 +107,14 @@
                 </div>
               </div>
             </div>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="text-center py-5 text-muted">
+                <i class="bi bi-check-circle-fill text-success mb-3" style="font-size: 3rem; display: block;"></i>
+                <h4 class="fw-bold text-dark">All Transactions Identified</h4>
+                <p class="mb-0 text-secondary" style="font-size: 0.95rem;">There are no unidentified transactions in this statement to review.</p>
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>

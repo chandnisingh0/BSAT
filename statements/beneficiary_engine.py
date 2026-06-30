@@ -37,59 +37,23 @@ class BeneficiaryEngine:
         
     #     # Account number
     #     'account_number': r'(\d{7,18})',
-    PATTERNS = {
-        # ── IMPS slash-delimited: IMPS/UTR/NAME/ACCOUNT/...
-        # e.g. IMPS/609544947606/NEW SADHI MOBILE AND ELECTRONICS/7874223322/...
-        # Captures field 3 (the human name) — skips UTR (all digits) and junk like 'Unregistered'
-        'imps_slash': r'IMPS/\d+/(?!Unregistered)([A-Za-z][A-Za-z\s&\.\-]+?)/',
-
-        # ── BillDesk payments: Bill Payment/BillDesk/IFSC.../ref.../MOB/null
-        # e.g. Bill Payment/BillDesk/ICIC00000NATSI/6096 19239590/MOB/null
-        # Counterparty = IFSC bank code (ICIC00000NATSI → ICICI Bank)
-        'billdesk': r'Bill\s+Payment/BillDesk/([A-Z]{4}\d*[A-Z0-9]+?)/',
-
-        # ── HIGHLY STRUCTURED MULTI-FIELD PATTERNS (PDFs / Advanced statements) ──
-        # e.g. IMPS:331306183624:059621010000023:DUNESTUDYABROAD
-        # e.g. RTGS/UBINR22025032101058301/COHERENT RMC PRIV
-        # e.g. CLG/573818/ANURADHA CHAVAN/THE MUNCIPAL CO-OP.BANK
-        # e.g. IB/RTGS/SRCBH23339232404/NIRMAL MA/Transfer
-        'structured_colon_slash': r'(?:RTGS|NEFT|CLG|IB/RTGS|IB/NEFT)(?:[:/][A-Z0-9]+)+[:/]([A-Za-z][A-Za-z\s\.&\-]+?)(?:[:/]|$)',
-
-        # ── STANDARD SPACE/HYPHEN FORMATS (RPTs / Basic statements) ──────────────
-        # e.g. NEFT 000520293131 DAMODAR LAXMINARAYAN HEGDE.
-        # e.g. RTGSALI ASGAR IQBALHDFCR520190
-        'neft_rtgs': r'(?:NEFT|RTGS)[-\s]*(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:\s+A/C|\s+LTD|[-\d/]|$)',
-
-        # By Inst (e.g. By Inst.6/HDFCBANK/)
-        'inst': r'By\s*Inst\.?\s*[\d]+/?([A-Za-z][A-Za-z\s\.&\-]+?)(?:/|$)',
-
-        # IMPS standard (colon or space-separated, non-slash format)
-        'imps': r'IMPS[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:[-\d/]|$)',
-
-        # UPI
-        'upi': r'UPI[-\s/]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s/]+)?(?:[A-Za-z0-9@\.\-_]+[-\s/]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:[-\d/]|$)',
-
-        # BY [BENEFICIARY NAME] or BY TRF [BENEFICIARY NAME]
-        'by_credit': r'^BY\s+(?:TRF\s+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:$|/|[-\d])',
-
-        # IB/NEFT fallback
-        'ib_neft': r'(?:IB/NEFT|IB|NEFT)/[A-Z0-9]+/([A-Za-z][A-Za-z\s\.&\-]+?)(?:/|$)',
-
-        # Generic company names
-        'company_name': r'([A-Za-z\s]+(?:PVT|LTD|PRIVATE|LIMITED|CORP|CORPORATION)(?:\s+LTD)?)',
-
-        # Dash or special character prefixed names (e.g. --MAHARASHTRA STATE ELECTR)
-        'dash_prefix': r'^[-:\s]+([A-Za-z][A-Za-z\s\.&\-]+?)(?:$)',
-
-        # Full names (catch-all for narrations that are purely a name)
-        'full_name': r'^([A-Za-z][A-Za-z\s\.&\-]{2,})$',
-
-        # Cheque
-        'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+([A-Za-z][A-Za-z\s\.&\-]+?)(?:$|/)',
-
-        # Account number
-        'account_number': r'(\d{7,18})',
-    }
+    # --- PATTERNS COMMENTED OUT FOR UNIVERSAL EXTRACTOR ---
+    # PATTERNS = {
+    #     'imps_slash': r'IMPS/\d+/(?!Unregistered)([A-Za-z][A-Za-z\s&\.\-]+?)/',
+    #     'billdesk': r'Bill\s+Payment/BillDesk/([A-Z]{4}\d*[A-Z0-9]+?)/',
+    #     'structured_colon_slash': r'(?:RTGS|NEFT|CLG|IB/RTGS|IB/NEFT)(?:[:/][A-Z0-9]+)+[:/]([A-Za-z][A-Za-z\s\.&\-]+?)(?:[:/]|$)',
+    #     'neft_rtgs': r'(?:NEFT|RTGS)[-\s]*(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:\s+A/C|\s+LTD|[-\d/]|$)',
+    #     'inst': r'By\s*Inst\.?\s*[\d]+/?([A-Za-z][A-Za-z\s\.&\-]+?)(?:/|$)',
+    #     'imps': r'IMPS[-\s]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:[-\d/]|$)',
+    #     'upi': r'UPI[-\s/]+(?:[A-Z0-9]*\d[A-Z0-9]*[-\s/]+)?(?:[A-Za-z0-9@\.\-_]+[-\s/]+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:[-\d/]|$)',
+    #     'by_credit': r'^BY\s+(?:TRF\s+)?([A-Za-z][A-Za-z\s\.&\-]+?)(?:$|/|[-\d])',
+    #     'ib_neft': r'(?:IB/NEFT|IB|NEFT)/[A-Z0-9]+/([A-Za-z][A-Za-z\s\.&\-]+?)(?:/|$)',
+    #     'company_name': r'([A-Za-z\s]+(?:PVT|LTD|PRIVATE|LIMITED|CORP|CORPORATION)(?:\s+LTD)?)',
+    #     'dash_prefix': r'^[-:\s]+([A-Za-z][A-Za-z\s\.&\-]+?)(?:$)',
+    #     'full_name': r'^([A-Za-z][A-Za-z\s\.&\-]{2,})$',
+    #     'cheque': r'CHQ\s*(?:NO\s*)?[\d\-]+\s+([A-Za-z][A-Za-z\s\.&\-]+?)(?:$|/)',
+    #     'account_number': r'(\d{7,18})',
+    # }
     
     # --- PREVIOUS CODE (Kept for safety) ---
     # PATTERNS = {
@@ -133,10 +97,13 @@ class BeneficiaryEngine:
     #     'account_number': r'(\d{7,18})',
     # }
 
-    # Common banking terms to exclude
+    # Universal Exclusion Keywords for Subtraction Logic
     EXCLUSION_KEYWORDS = [
-        'TRANSFER', 'PAYMENT', 'DEBIT', 'CREDIT', 'BALANCE', 'CHARGES',
-        'INTEREST', 'CLEARING', 'MISC', 'OTHERS', 'UNKNOWN', 'CASH'
+        r'\bIMPS\b', r'\bNEFT\b', r'\bRTGS\b', r'\bUPI\b', r'\bTRANSFER\b', r'\bPAYMENT\b', 
+        r'\bDEBIT\b', r'\bCREDIT\b', r'\bBALANCE\b', r'\bCHARGES\b', r'\bINTEREST\b', 
+        r'\bCLEARING\b', r'\bMISC\b', r'\bOTHERS\b', r'\bUNKNOWN\b', r'\bCASH\b', 
+        r'\bUNREGISTERED\b', r'\bOUT\b', r'\bIN\b', r'\bEMI\b', r'\bPENDING\b', 
+        r'\bNULL\b', r'\bMOB\b', r'\bTRF\b', r'\bBY\b', r'\bBILL\b', r'\bTRANSACTION\b'
     ]
     
     BENEFICIARY_TYPES = {
@@ -152,6 +119,55 @@ class BeneficiaryEngine:
         'LOW': 0.0
     }
     
+    BANK_CODE_MAP = {
+        'HDFC': 'HDFC BANK',
+        'KOTA': 'KOTAK MAHINDRA BANK',
+        'ICIC': 'ICICI BANK',
+        'AUBA': 'AU SMALL FINANCE BANK',
+        'RBLB': 'RBL BANK',
+        'SBIC': 'STATE BANK OF INDIA',
+        'AXIS': 'AXIS BANK',
+        'IBKL': 'IDBI BANK',
+        'BARB': 'BANK OF BARODA',
+        'PUNB': 'PUNJAB NATIONAL BANK',
+        'CNRB': 'CANARA BANK',
+        'UTIB': 'AXIS BANK',
+        'YESB': 'YES BANK',
+        'ANDB': 'ANDHRA BANK',
+        'CORP': 'CORPORATION BANK',
+        'IDIB': 'INDIAN BANK',
+        'IOBA': 'INDIAN OVERSEAS BANK',
+        'ORBC': 'ORIENTAL BANK OF COMMERCE',
+        'UBIN': 'UNION BANK OF INDIA',
+        'VIJB': 'VIJAYA BANK',
+        'SDRB': 'SIDBI',
+        'SYNB': 'SYNDICATE BANK',
+        'ALLA': 'ALLAHABAD BANK',
+        'FDRL': 'FEDERAL BANK',
+        'HSBC': 'HSBC BANK',
+        'SCBL': 'STANDARD CHARTERED BANK',
+        'KKBK': 'KOTAK MAHINDRA BANK',
+        'INDB': 'INDUSIND BANK',
+        'MAHB': 'BANK OF MAHARASHTRA',
+        'UCOB': 'UCO BANK',
+        'CBIN': 'CENTRAL BANK OF INDIA',
+        'BOTM': 'MUFG BANK',
+        'CITI': 'CITIBANK',
+        'DBSS': 'DBS BANK',
+        'ESAF': 'ESAF SMALL FINANCE BANK',
+        'JSBP': 'JANALAKSHMI COOPERATIVE BANK',
+        'KARB': 'KARNATAKA BANK',
+        'KVBL': 'KARUR VYSYA BANK',
+        'LAVB': 'LAXMI VILAS BANK',
+        'NBLD': 'NOIDA COMMERCIAL COOPERATIVE BANK',
+        'PMEC': 'PRIME COOPERATIVE BANK',
+        'SIBL': 'SOUTH INDIAN BANK',
+        'TJSB': 'TJSB SAHAKARI BANK',
+        'TMBL': 'TAMILNAD MERCANTILE BANK',
+        'VARB': 'VARACHHA COOPERATIVE BANK',
+        'VYSA': 'ING VYSYA BANK',
+    }
+    
     def __init__(self, statement, transaction_threshold=100000, confidence_threshold='HIGH'):
         self.statement = statement
         self.transaction_threshold = Decimal(str(transaction_threshold))
@@ -163,36 +179,63 @@ class BeneficiaryEngine:
     # ===== LAYER 1: RULE-BASED EXTRACTION =====
 
     def layer1_extract(self, transaction):
-        """Try to extract beneficiary using pattern matching."""
+        """Universal Extraction: Splitting, Noise Subtraction, and Scoring."""
         narration = (transaction.narration_raw or '').strip()
         
         if not narration or len(narration) < 2:
             return None
+            
+        ex_re = re.compile('|'.join(self.EXCLUSION_KEYWORDS), re.IGNORECASE)
+        # Regex to remove reference numbers (7+ digits), IFSC codes, date strings
+        ref_re = re.compile(r'\b\d{7,}\b|\b[A-Z]{4}0[A-Z0-9]{6}\b|\b\d{2}-\d{2}-\d{4}\b', re.IGNORECASE)
+
+        # Split by strong delimiters (/ or : or hyphen-with-spaces or multiple spaces)
+        segments = re.split(r'/|:| - | -|  +', narration)
+        if len(segments) == 1:
+            segments = [narration]
+            
+        candidates = []
+        for seg in segments:
+            # Subtraction phase
+            seg_clean = ex_re.sub(' ', seg)
+            seg_clean = ref_re.sub(' ', seg_clean)
+            seg_clean = re.sub(r'[\-\.]+', ' ', seg_clean)
+            seg_clean = re.sub(r'\s+', ' ', seg_clean).strip()
+            
+            if len(seg_clean) > 3 and not seg_clean.isdigit():
+                candidates.append(seg_clean)
+                
+        if not candidates:
+            return None
+            
+        # Scoring phase
+        def score_candidate(c):
+            s = 0
+            c_up = c.upper()
+            if 'BANK' in c_up: s += 5
+            if any(k in c_up for k in ['PVT', 'LTD', 'INDUSTRIES']): s += 5
+            # Bonus if mostly alphabetic
+            if re.fullmatch(r'[A-Za-z\s]+', c): s += 2
+            # Tie breaker: length is the strongest indicator of a full name
+            s += len(c) * 1.0
+            return s
+            
+        best_candidate = max(candidates, key=score_candidate)
         
-        # Try each pattern in order
-        for pattern_name, pattern in self.PATTERNS.items():
-            try:
-                match = re.search(pattern, narration, re.IGNORECASE)
-                if match:
-                    extracted = match.group(1).strip()
-                    
-                    # Filter out generic terms
-                    if self._is_valid_beneficiary_name(extracted):
-                        beneficiary_type = self._classify_beneficiary_type(extracted)
-                        confidence = self._calculate_layer1_confidence(pattern_name, narration)
-                        
-                        return {
-                            'beneficiary_name': self._normalize_name(extracted),
-                            'beneficiary_type': beneficiary_type,
-                            'confidence': confidence,
-                            'layer': 'LAYER_1',
-                            'extraction_basis': f'Pattern: {pattern_name}',
-                            'pattern_used': pattern_name,
-                        }
-            except Exception as e:
-                continue
+        # If the best candidate is still garbage, fallback
+        if not self._is_valid_beneficiary_name(best_candidate):
+            return None
+            
+        beneficiary_type = self._classify_beneficiary_type(best_candidate)
         
-        return None
+        return {
+            'beneficiary_name': self._normalize_name(best_candidate),
+            'beneficiary_type': beneficiary_type,
+            'confidence': 0.90, # Universal rule confidence
+            'layer': 'LAYER_1',
+            'extraction_basis': 'Universal Tokenization & Subtraction',
+            'pattern_used': 'universal_extractor',
+        }
         
     # def layer1_extract(self, transaction):
     #     """Try to extract beneficiary using pattern matching."""
@@ -239,8 +282,11 @@ class BeneficiaryEngine:
         if name.isdigit():
             return False
         
-        # Reject pure bank/generic terms
-        if name.upper() in self.EXCLUSION_KEYWORDS:
+        # Reject pure bank/generic terms (now handled by exclusion keywords regex mostly)
+        # But a basic check ensures we don't return literally "TRANSFER" if it survived
+        words = set(w.upper() for w in re.split(r'\W+', name) if w)
+        clean_exclusions = set(k.replace(r'\b', '') for k in self.EXCLUSION_KEYWORDS)
+        if words and all(w in clean_exclusions for w in words):
             return False
         
         # Must have at least one letter
@@ -260,8 +306,16 @@ class BeneficiaryEngine:
         return 'INDIVIDUAL'
     
     def _normalize_name(self, name):
-        """Normalize beneficiary name (uppercase, strip extra spaces)."""
-        return ' '.join(name.upper().split())
+        """Normalize beneficiary name (uppercase, strip extra spaces, resolve bank codes)."""
+        name_clean = ' '.join(name.upper().split())
+        
+        # Resolve IFSC/routing codes (e.g. HDFCOOOOOONATW1, ICICOOOOOONATSI) to clean Bank Names
+        if re.match(r'^[A-Z]{4}[A-Z0-9]{7,11}$', name_clean):
+            prefix = name_clean[:4]
+            if prefix in self.BANK_CODE_MAP:
+                return self.BANK_CODE_MAP[prefix]
+                
+        return name_clean
     
     def _calculate_layer1_confidence(self, pattern_name, narration):
         """Assign confidence based on pattern and narration quality."""

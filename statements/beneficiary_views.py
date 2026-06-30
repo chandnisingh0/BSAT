@@ -24,16 +24,14 @@ def beneficiary_dashboard_view(request, statement_id):
     # Check if identification has started
     counterparties_count = statement.counterparties.count()
     identified_transactions = statement.transactions.filter(beneficiary__isnull=False).count()
-    total_eligible = statement.transactions.filter(
-        Q(debit__gte=100000) | Q(credit__gte=100000)
-    ).count()
+    total_eligible = statement.transactions.count()
     
     stats = {
         'counterparties_identified': counterparties_count,
         'transactions_identified': identified_transactions,
         'total_eligible': total_eligible,
         'identification_rate': f"{(identified_transactions / total_eligible * 100) if total_eligible > 0 else 0:.1f}%" if total_eligible > 0 else "0%",
-        'pending_review': Counterparty.objects.filter(statement=statement, reviewed_by__isnull=True).count(),
+        'pending_review': statement.transactions.filter(beneficiary__isnull=True).count(),
     }
     
     # Get top counterparties by net position
@@ -59,7 +57,7 @@ def start_beneficiary_identification_view(request, statement_id):
     
     try:
         # Run the engine
-        engine = BeneficiaryEngine(statement, transaction_threshold=100000, confidence_threshold='HIGH')
+        engine = BeneficiaryEngine(statement, transaction_threshold=0, confidence_threshold='HIGH')
         result = engine.run_identification()
         
         # Process Layer 1 & Layer 2 results
@@ -90,6 +88,7 @@ def start_beneficiary_identification_view(request, statement_id):
             
             # Update transaction
             transaction.beneficiary = counterparty
+            transaction.counterparty_name = counterparty.name
             transaction.beneficiary_identified_by = 'RULE_BASED' if status == 'IDENTIFIED_LAYER1' else 'OLLAMA'
             transaction.beneficiary_confidence = result_data['confidence']
             transaction.save()
@@ -133,13 +132,9 @@ def analyst_review_queue_view(request, statement_id):
     """Display unidentified transactions for analyst review."""
     statement = get_object_or_404(Statement, id=statement_id)
     
-    # Get unidentified eligible transactions
+    # Get all unidentified transactions
     unidentified = statement.transactions.filter(
-        beneficiary__isnull=True,
-        debit__gte=100000
-    ) | statement.transactions.filter(
-        beneficiary__isnull=True,
-        credit__gte=100000
+        beneficiary__isnull=True
     )
     
     # Pagination
@@ -182,6 +177,7 @@ def assign_beneficiary_view(request, statement_id, transaction_id):
     
     # Update transaction
     transaction.beneficiary = counterparty
+    transaction.counterparty_name = counterparty.name
     transaction.beneficiary_identified_by = 'ANALYST'
     transaction.beneficiary_confidence = 1.0
     transaction.save()

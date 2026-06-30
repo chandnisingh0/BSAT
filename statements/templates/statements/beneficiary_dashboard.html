@@ -263,11 +263,9 @@
   <a href="{% url 'counterparty_ledger' statement.id %}" class="btn btn-action-primary text-decoration-none">
     View Counterparty Ledger
   </a>
-  {% if stats.pending_review > 0 %}
   <a href="{% url 'analyst_review_queue' statement.id %}" class="btn btn-action-warning-custom text-decoration-none">
     Review Queue ({{ stats.pending_review }})
   </a>
-  {% endif %}
   <a href="{% url 'export_counterparty_ledger' statement.id %}" class="btn btn-action-secondary text-decoration-none">
     Export Ledger
   </a>

@@ -25,8 +25,44 @@ logger = logging.getLogger("statements.union_bank_parser")
 _DPI = 200
 
 # ---------------------------------------------------------------------------
-# Date fixing
+# Skew and Date helper functions
 # ---------------------------------------------------------------------------
+
+import math
+
+_ROBUST_DATE_RE = re.compile(r'^(\d{2})[-/\\~=\s_.]?(\d{2})[-/\\~=\s_.]?(\d{4})(.*)')
+
+def _get_hist_var(ys, bin_size=5):
+    min_y = min(ys)
+    max_y = max(ys)
+    if max_y == min_y:
+        return 0
+    num_bins = int((max_y - min_y) / bin_size) + 1
+    bins = [0] * num_bins
+    for y in ys:
+        idx = int((y - min_y) / bin_size)
+        if 0 <= idx < num_bins:
+            bins[idx] += 1
+    mean = sum(bins) / len(bins)
+    variance = sum((x - mean) ** 2 for x in bins) / len(bins)
+    return variance
+
+
+def estimate_skew_angle(words):
+    if not words:
+        return 0.0
+    best_angle = 0.0
+    max_variance = 0.0
+    for a_deg in [x * 0.2 for x in range(-15, 16)]:
+        angle = a_deg * math.pi / 180
+        tan_a = math.tan(angle)
+        projected_ys = [w['top'] - w['left'] * tan_a for w in words]
+        variance = _get_hist_var(projected_ys, bin_size=4)
+        if variance > max_variance:
+            max_variance = variance
+            best_angle = angle
+    return best_angle
+
 
 def _fix_date_parts(dd: str, mm: str, yyyy: str, trailing_ref: str = '') -> tuple:
     """Fix OCR errors in date parts."""
@@ -36,14 +72,16 @@ def _fix_date_parts(dd: str, mm: str, yyyy: str, trailing_ref: str = '') -> tupl
     m = int(mm)
     if m > 12:
         mm = mm.replace('9', '0').replace('8', '0')
-    # Year: trailing-ref contamination
-    if trailing_ref and trailing_ref[0].isalpha() and yyyy.endswith('9'):
+    
+    # Year: trailing-ref contamination (e.g., 20195... -> 2018S..., 20198... -> 20188...)
+    if trailing_ref and (trailing_ref[0].isalpha() or trailing_ref[0] in '58') and yyyy.endswith('9'):
         cand = yyyy[:-1] + '8'
         try:
             if 2015 <= int(cand) <= 2026:
                 yyyy = cand
         except ValueError:
             pass
+            
     # If year still wrong, try single replacements
     y = int(yyyy)
     if not (2015 <= y <= 2026):
@@ -62,6 +100,18 @@ def _fix_date_parts(dd: str, mm: str, yyyy: str, trailing_ref: str = '') -> tupl
         if candidates:
             yyyy = str(min(candidates))
     return dd, mm, yyyy
+
+
+def _extract_date_and_trail(line_words):
+    for num_words in range(1, 5):
+        if num_words > len(line_words):
+            break
+        joined = "".join(w['text'] for w in line_words[:num_words])
+        cleaned = re.sub(r'^[^0-9]+', '', joined)
+        m = _ROBUST_DATE_RE.match(cleaned)
+        if m:
+            return m, num_words
+    return None, 0
 
 
 def _parse_date(dd: str, mm: str, yyyy: str):
@@ -219,34 +269,91 @@ _SKIP_RE = re.compile(
 
 def _parse_page_image(img: "Image.Image", page_num: int) -> list:
     """
-    SEMANTIC extraction:
-    1. Find all amount tokens
-    2. Rightmost amount with CR/DR = BALANCE
-    3. Amount before balance = DEBIT
-    4. Short alphanumeric tokens after date = REFERENCE
-    5. Rest = NARRATION
+    Extract transaction rows from one corrected (upright) PIL Image using:
+    1. Dynamic skew estimation & deskewing of OCR word coordinates.
+    2. Vertical overlap & proximity grouping of words into horizontal lines.
+    3. Robust prefix-based date extraction to handle noise and split tokens.
+    4. Horizontally-segmented column partitioning (Date, Ref, Particulars, Debit, Balance).
     """
+    img_w, img_h = img.size
+    
+    # Column fractions (calibrated for 200 dpi)
+    ref_end       = int((370 / 1654) * img_w)
+    debit_start   = int((750 / 1654) * img_w)
+    balance_start = int((1150 / 1654) * img_w)
+
     data = pytesseract.image_to_data(
         img, output_type=pytesseract.Output.DICT, config='--psm 6 --oem 1'
     )
 
-    lines = {}
+    words = []
     for i in range(len(data['text'])):
-        word = data['text'][i].strip()
-        if not word:
+        text = data['text'][i].strip()
+        if not text:
             continue
-        key = data['block_num'][i] * 10000 + data['par_num'][i] * 1000 + data['line_num'][i]
-        lines.setdefault(key, []).append(word)
+        words.append({
+            'text': text,
+            'left': data['left'][i],
+            'top': data['top'][i],
+            'width': data['width'][i],
+            'height': data['height'][i],
+            'bottom': data['top'][i] + data['height'][i],
+            'cy': data['top'][i] + data['height'][i] / 2
+        })
+
+    if not words:
+        return []
+
+    # 1. Estimate skew angle and adjust Y coordinates
+    skew_angle = estimate_skew_angle(words)
+    tan_a = math.tan(skew_angle)
+    
+    for w in words:
+        w['top_adj'] = w['top'] - w['left'] * tan_a
+        w['bottom_adj'] = w['bottom'] - w['left'] * tan_a
+        w['cy_adj'] = w['cy'] - w['left'] * tan_a
+
+    # 2. Group words into horizontal lines using adjusted Y coordinates
+    words.sort(key=lambda w: w['top_adj'])
+    grouped_lines = []
+    for w in words:
+        placed = False
+        for line in grouped_lines:
+            line_top = sum(item['top_adj'] for item in line) / len(line)
+            line_bottom = sum(item['bottom_adj'] for item in line) / len(line)
+            line_height = line_bottom - line_top
+            
+            overlap_top = max(w['top_adj'], line_top)
+            overlap_bottom = min(w['bottom_adj'], line_bottom)
+            overlap = max(0, overlap_bottom - overlap_top)
+            
+            cy_line = (line_top + line_bottom) / 2
+            
+            if overlap > 0.4 * min(w['height'], line_height) or abs(w['cy_adj'] - cy_line) < 8:
+                line.append(w)
+                placed = True
+                break
+        if not placed:
+            grouped_lines.append([w])
+
+    # 3. Sort lines vertically and sort words in each line horizontally
+    final_lines = []
+    for line in grouped_lines:
+        line.sort(key=lambda w: w['left'])
+        avg_y = sum(w['top_adj'] for w in line) / len(line)
+        final_lines.append((avg_y, line))
+    
+    final_lines.sort(key=lambda x: x[0])
 
     rows = []
     row_counter = 0
 
-    for key in sorted(lines):
-        tokens = lines[key]
-        if not tokens:
+    for avg_y, line_words in final_lines:
+        if not line_words:
             continue
 
-        dm = _DATE_RE.match(tokens[0])
+        # Extract date using robust prefix matching
+        dm, num_date_words = _extract_date_and_trail(line_words)
         if not dm:
             continue
 
@@ -256,93 +363,40 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
         if txn_date is None:
             continue
 
-        line_text = ' '.join(tokens)
+        line_text = ' '.join(w['text'] for w in line_words)
         if _SKIP_RE.search(line_text):
             continue
 
-        # ===== SEMANTIC EXTRACTION =====
-        # Find ALL amount-like tokens (skip date token)
-        amount_indices = []
-        for i, tok in enumerate(tokens[1:], start=1):
-            if _looks_like_amount(tok):
-                amount_indices.append(i)
+        # Filter out the words that were part of the date prefix
+        remaining_words = line_words[num_date_words:]
 
-        if not amount_indices:
-            continue
+        # Split into columns based on x-coordinates
+        ref_zone = [w for w in remaining_words if w['left'] < ref_end]
+        ref = trail
+        if not ref and len(ref_zone) > 0:
+            ref = ' '.join(w['text'] for w in ref_zone).strip()
 
-        # BALANCE: rightmost amount with CR/DR suffix
-        balance_raw = None
-        balance_idx = None
-        for i in reversed(amount_indices):
-            tok = tokens[i]
-            if re.search(r'(?i)(cr|dr)', tok):
-                balance_raw = tok
-                balance_idx = i
-                break
+        parts = ' '.join(
+            w['text'] for w in remaining_words
+            if ref_end <= w['left'] < debit_start
+        ).strip()
 
-        if balance_raw is None:
-            continue
+        deb_text = ''.join(
+            w['text'] for w in remaining_words
+            if debit_start <= w['left'] < balance_start
+        ).strip()
+        deb_val = _parse_amount(deb_text)
 
-        bal_val = _parse_amount(balance_raw)
+        bal_text = ''.join(
+            w['text'] for w in remaining_words if w['left'] >= balance_start
+        ).strip()
+        bal_val  = _parse_amount(bal_text)
+        bal_type = _balance_type(bal_text)
+
         if bal_val is None:
             continue
 
-        # DEBIT: rightmost amount BEFORE balance (excluding balance)
-        debit_raw = None
-        debit_idx = None
-        for i in reversed(amount_indices):
-            if i >= balance_idx:
-                continue
-            debit_raw = tokens[i]
-            debit_idx = i
-            break
-
-        deb_val = _parse_amount(debit_raw) if debit_raw else None
-
-        # REFERENCE: tokens after date until first "long text" or "Charges"
-        ref_tokens = []
-        if trail:
-            ref_tokens.append(trail)
-
-        for i in range(1, len(tokens)):
-            tok = tokens[i]
-            # Stop at first amount
-            if _looks_like_amount(tok):
-                break
-            # Stop at "Charges" (marks narration start)
-            if tok.lower() == 'charges':
-                break
-            # Stop at long words (company names, > 15 chars)
-            if len(tok) > 15:
-                break
-            # Include short, alphanumeric tokens as ref
-            if len(tok) <= 15 and (tok.isalnum() or tok.replace('-', '').isalnum()):
-                ref_tokens.append(tok)
-            else:
-                break
-
-        ref = ' '.join(ref_tokens).strip()
-
-        # NARRATION: everything after ref, excluding amounts
-        part_tokens = []
-        # Skip tokens up to end of ref tokens
-        start_idx = len(ref_tokens) + 1  # +1 for date token
-
-        for i in range(start_idx, len(tokens)):
-            tok = tokens[i]
-            # Skip amount tokens
-            if i == debit_idx or i == balance_idx:
-                continue
-            # Skip pure amounts without context
-            if _looks_like_amount(tok):
-                continue
-            part_tokens.append(tok)
-
-        parts = ' '.join(part_tokens).strip()
-
-        bal_type = _balance_type(balance_raw)
         row_counter += 1
-
         rows.append({
             'txn_date':          txn_date,
             'value_date':        None,
@@ -360,8 +414,8 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
             'bank_json_data': {
                 'page_num':    page_num,
                 'raw_line':    line_text,
-                'debit_raw':   debit_raw or '',
-                'balance_raw': balance_raw,
+                'debit_raw':   deb_text,
+                'balance_raw': bal_text,
             },
         })
 

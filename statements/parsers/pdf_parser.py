@@ -87,7 +87,14 @@ def _merge_continuation_rows(raw_table: list[list]) -> list[list]:
             if extra_text:
                 anchor = merged[-1]
                 narration_idx = 2 if len(anchor) > 2 else 0
-                anchor[narration_idx] = (anchor[narration_idx] + " " + extra_text).strip()
+                prev_text = anchor[narration_idx]
+                
+                # Smart join: If a reference number or ID was split across lines, don't insert a space.
+                # (e.g. '.../6096' + '19239590/...' -> '.../609619239590/...')
+                if re.search(r'[\d/]$', prev_text) and re.match(r'^[\d/]', extra_text):
+                    anchor[narration_idx] = prev_text + extra_text
+                else:
+                    anchor[narration_idx] = (prev_text + " " + extra_text).strip()
         else:
             # New anchor row (mutable copy — cells already cleaned above)
             merged.append(list(cells))
