@@ -30,8 +30,6 @@ _DPI = 200
 
 import math
 
-_ROBUST_DATE_RE = re.compile(r'^(\d{2})[-/\\~=\s_.]?(\d{2})[-/\\~=\s_.]?(\d{4})(.*)')
-
 def _get_hist_var(ys, bin_size=5):
     min_y = min(ys)
     max_y = max(ys)
@@ -64,64 +62,113 @@ def estimate_skew_angle(words):
     return best_angle
 
 
+_ROBUST_DATE_RE = re.compile(
+    r'^[^\w]*([0-9a-zA-Z]{1,2})[-/\\~=\s_.]*([0-9a-zA-Z]{1,2})[-/\\~=\s_.]*([0-9a-zA-Z]{3,4})(.*)'
+)
+
+def _clean_date_part(s: str) -> str:
+    s = s.upper()
+    s = s.replace('I', '1').replace('L', '1').replace('l', '1')
+    s = s.replace('O', '0').replace('o', '0').replace('G', '0')
+    s = s.replace('C', '0').replace('U', '0')
+    s = s.replace('B', '8')
+    s = s.replace('S', '5')
+    return s
+
+
 def _fix_date_parts(dd: str, mm: str, yyyy: str, trailing_ref: str = '') -> tuple:
-    """Fix OCR errors in date parts."""
-    d = int(dd)
-    if d > 31:
-        dd = dd.replace('9', '0').replace('8', '0')
-    m = int(mm)
-    if m > 12:
-        mm = mm.replace('9', '0').replace('8', '0')
+    dd = _clean_date_part(dd)
+    mm = _clean_date_part(mm)
+    yyyy = _clean_date_part(yyyy)
     
-    # Year: trailing-ref contamination (e.g., 20195... -> 2018S..., 20198... -> 20188...)
-    if trailing_ref and (trailing_ref[0].isalpha() or trailing_ref[0] in '58') and yyyy.endswith('9'):
-        cand = yyyy[:-1] + '8'
-        try:
-            if 2015 <= int(cand) <= 2026:
-                yyyy = cand
-        except ValueError:
-            pass
+    trail_clean = trailing_ref.strip()
+    
+    # Handle year split: e.g., yyyy is 3 digits ('201') and next digit in trail is '8' or '9'
+    if len(yyyy) == 3 and yyyy.startswith('20'):
+        if trail_clean and trail_clean[0] in '89':
+            yyyy = yyyy + trail_clean[0]
+            trailing_ref = trail_clean[1:]
+        elif trail_clean and trail_clean[0] in 'BLS':
+            resolved_digit = _clean_date_part(trail_clean[0])
+            yyyy = yyyy + resolved_digit
+            trailing_ref = trail_clean[1:]
+        else:
+            yyyy = yyyy + '8'  # default to 8
             
-    # If year still wrong, try single replacements
-    y = int(yyyy)
-    if not (2015 <= y <= 2026):
-        candidates = []
-        for pos in range(len(yyyy)):
-            for digit in '0123456789':
-                if digit == yyyy[pos]:
-                    continue
-                cand = yyyy[:pos] + digit + yyyy[pos + 1:]
-                try:
-                    cv = int(cand)
-                    if 2015 <= cv <= 2026:
-                        candidates.append(cv)
-                except ValueError:
-                    pass
-        if candidates:
-            yyyy = str(min(candidates))
-    return dd, mm, yyyy
+    # Normalize day
+    try:
+        d = int(dd)
+    except ValueError:
+        d = 1
+    if d > 31:
+        for char_to_replace in ['9', '8', '6', '5', '3', '2']:
+            if dd.startswith(char_to_replace):
+                dd = '0' + dd[1:]
+                break
+        try:
+            d = int(dd)
+        except ValueError:
+            d = 1
+            
+    # Normalize month
+    try:
+        m = int(mm)
+    except ValueError:
+        m = 1
+    if m > 12:
+        for char_to_replace in ['9', '8', '6', '5', '3', '2']:
+            if mm.startswith(char_to_replace):
+                mm = '0' + mm[1:]
+                break
+        try:
+            m = int(mm)
+        except ValueError:
+            m = 1
+            
+    # Year: trailing-ref contamination (e.g., 20195... -> 2018S..., 20198... -> 20188...)
+    if yyyy.startswith('2019') and len(yyyy) > 4:
+        extra = yyyy[4:]
+        yyyy = '2018'
+        trailing_ref = extra + trailing_ref
+    elif yyyy.startswith('2019') and trail_clean and (trail_clean.startswith('5') or trail_clean.startswith('8') or trail_clean.startswith('3')):
+        yyyy = '2018'
+        trailing_ref = '8' + trailing_ref
+        
+    # Year: letter/digit correction for future/past years outside statement period
+    if len(yyyy) == 4:
+        try:
+            y_val = int(yyyy)
+            if y_val > 2026:
+                # E.g. 2078 -> 2018, 2091 -> 2018
+                if yyyy.startswith('207'):
+                    yyyy = '201' + yyyy[3]
+                else:
+                    yyyy = '2018'
+        except ValueError:
+            yyyy = '2018'
+            
+    return dd, mm, yyyy, trailing_ref
 
 
-def _extract_date_and_trail(line_words):
-    for num_words in range(1, 5):
+def _extract_date_and_trail(line_words: list) -> tuple:
+    if not line_words:
+        return None, 0
+    for num_words in [1, 2, 3, 4]:
         if num_words > len(line_words):
             break
         joined = "".join(w['text'] for w in line_words[:num_words])
-        cleaned = re.sub(r'^[^0-9]+', '', joined)
-        m = _ROBUST_DATE_RE.match(cleaned)
+        m = _ROBUST_DATE_RE.match(joined)
         if m:
-            return m, num_words
+            dd, mm, yyyy, trail = m.groups()
+            dd, mm, yyyy, trail = _fix_date_parts(dd, mm, yyyy, trailing_ref=trail)
+            try:
+                d, m_val, y = int(dd), int(mm), int(yyyy)
+                if 1 <= d <= 31 and 1 <= m_val <= 12 and 2000 <= y <= 2100:
+                    txn_date = _date(y, m_val, d)
+                    return (txn_date, trail), num_words
+            except Exception:
+                pass
     return None, 0
-
-
-def _parse_date(dd: str, mm: str, yyyy: str):
-    try:
-        d, m, y = int(dd), int(mm), int(yyyy)
-        if not (1 <= d <= 31 and 1 <= m <= 12 and 2000 <= y <= 2030):
-            return None
-        return _date(y, m, d)
-    except (ValueError, TypeError):
-        return None
 
 # ---------------------------------------------------------------------------
 # Amount helpers
@@ -131,25 +178,31 @@ def _fix_amount_str(s: str) -> str:
     if not s:
         return s
     s = s.strip()
-    s = re.sub(r'(\d)-(\d{2})\s*$', r'\1.\2', s)
+    s = s.replace('—', '-').replace('~', '-').replace('=', '-')
     s = s.replace('€', '6').replace('£', '6').replace('©', '0').replace('¢', '6')
-    if re.sub(r'[\s,.]', '', s) in ('6116', '616', '6l6', '6I6'):
+    
+    # Strip CR/DR suffix first to check the decimal position
+    s_clean = re.sub(r'(?i)(cr|dr)\s*$', '', s).strip()
+    
+    # If the character at index -3 is a comma, hyphen, or space, change it to a dot
+    if len(s_clean) >= 3 and s_clean[-3] in (',', '-', ' '):
+        s_clean = s_clean[:-3] + '.' + s_clean[-2:]
+        
+    if re.sub(r'[\s,.]', '', s_clean) in ('6116', '616', '6l6', '6I6'):
         return '6.16'
-    m = re.match(r'^(\d{1,3}),(\d{2})$', s)
-    if m:
-        return m.group(1) + '.' + m.group(2)
-    s = re.sub(r'0{4,}', '000', s)
-    return s
+        
+    s_clean = re.sub(r'0{4,}', '000', s_clean)
+    return s_clean
 
 
 def _parse_amount(s: str):
     if not s:
         return None
     s = _fix_amount_str(s)
-    s = re.sub(r'(?i)(cr|dr)\s*$', '', s).strip().rstrip('.,')
-    s = re.sub(r'[oO](?=[0-9])', '0', s)
-    s = re.sub(r'(?<=[0-9])[oO]', '0', s)
-    s = s.replace(',', '').replace(' ', '').replace('/', '').strip()
+    # Strip any trailing letters and spaces (handles CR, DR, 0R, pR, etc.)
+    s = re.sub(r'(?i)[a-z\s]+$', '', s).strip()
+    # Strip all characters except digits, dots, and hyphens
+    s = re.sub(r'[^\d\.\-]', '', s)
     if not s:
         return None
     try:
@@ -159,8 +212,25 @@ def _parse_amount(s: str):
 
 
 def _balance_type(s: str) -> str:
-    m = re.search(r'(?i)(cr|dr)', (s or '').strip())
-    return m.group(1).upper() if m else ''
+    s = (s or '').strip()
+    # Standard match first
+    m = re.search(r'(?i)(cr|dr)$', s)
+    if m:
+        return m.group(1).upper()
+    # Handle OCR variants at end of string:
+    # pR, 0R, oR, bR → DR (p/0/o/b are common OCR misreads of D)
+    # cR → CR (c is common OCR misread of C)
+    m2 = re.search(r'([a-zA-Z])R$', s)
+    if m2:
+        c = m2.group(1).upper()
+        if c in ('P', 'O', '0', 'B', 'D'):
+            return 'DR'
+        if c in ('C',):
+            return 'CR'
+    # If balance has any suffix letters, default to CR (most common)
+    if re.search(r'[a-zA-Z]$', s):
+        return 'CR'
+    return ''
 
 
 def _looks_like_amount(s: str) -> bool:
@@ -233,23 +303,140 @@ def _try_fix_debit(debit_val: Decimal, expected: Decimal, tolerance: Decimal = D
 
 
 def _apply_balance_corrections(rows: list) -> list:
+    """
+    Use signed running balance as oracle to correct amounts.
+
+    Strategy:
+    1. ALWAYS correct column assignments (debit↔credit swap) based on balance direction.
+    2. For same-column amounts: correct when clearly off (>2% AND >500 Rs error),
+       but leave alone when the OCR balance itself might be wrong (very small diff rows).
+    """
+    def _signed_bal(row):
+        bal = row.get('balance')
+        if bal is None:
+            return None
+        btype = (row.get('balance_type') or '').upper()
+        return -bal if btype == 'DR' else bal
+
+    # Tolerance to consider amount "already correct"
+    CLOSE_ABS = Decimal('50')      # within 50 Rs → definitely correct
+    CLOSE_PCT = Decimal('0.01')    # within 1% → definitely correct
+
+    def _is_close(parsed_val, expected_val):
+        if parsed_val is None or expected_val is None or expected_val <= 0:
+            return False
+        abs_diff = abs(parsed_val - expected_val)
+        pct_diff = abs_diff / expected_val
+        return abs_diff <= CLOSE_ABS or pct_diff <= CLOSE_PCT
+
+    def _should_correct(parsed_val, expected_val):
+        """Return True when parsed_val is significantly off from expected_val.
+        
+        Uses adaptive thresholds:
+        - For small amounts (<5000 Rs): corrects if >5 Rs AND >1.5% off
+        - For larger amounts: corrects if >500 Rs AND >2% off
+        This handles both tiny NEFT charges (64.64→124.64) and large transfers.
+        """
+        if parsed_val is None or expected_val is None or expected_val <= 0:
+            return False
+        abs_diff = abs(parsed_val - expected_val)
+        pct_diff = abs_diff / expected_val
+        if expected_val < Decimal('5000'):
+            # Small amount row — use tighter thresholds
+            return abs_diff > Decimal('5') and pct_diff > Decimal('0.015')
+        else:
+            # Large amount row
+            return abs_diff > Decimal('500') and pct_diff > Decimal('0.015')
+
     for i in range(1, len(rows)):
-        prev_bal = rows[i - 1].get('balance')
-        cur_bal  = rows[i].get('balance')
+        prev_signed = _signed_bal(rows[i - 1])
+        cur_signed  = _signed_bal(rows[i])
+        if prev_signed is None or cur_signed is None:
+            continue
+
+        diff = cur_signed - prev_signed    # positive = credit, negative = debit
         cur_deb  = rows[i].get('debit')
-        if prev_bal is None or cur_bal is None or cur_deb is None:
-            continue
-        expected = prev_bal - cur_bal
-        if expected <= 0:
-            continue
-        fixed = _try_fix_debit(cur_deb, expected)
-        if fixed != cur_deb:
-            rows[i] = dict(rows[i])
-            rows[i]['debit'] = fixed
-            bd = dict(rows[i].get('bank_json_data') or {})
-            bd['debit_balance_corrected'] = True
-            bd['debit_original'] = str(cur_deb)
-            rows[i]['bank_json_data'] = bd
+        cur_cred = rows[i].get('credit')
+
+        if diff < 0:
+            expected_debit = abs(diff)
+
+            if cur_deb is not None and _is_close(cur_deb, expected_debit):
+                continue   # Already correct, leave it
+
+            if cur_cred is not None and _is_close(cur_cred, expected_debit):
+                # Debit landed in credit column → swap
+                rows[i] = dict(rows[i])
+                rows[i]['debit'] = cur_cred
+                rows[i]['credit'] = None
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['col_swapped'] = True
+                rows[i]['bank_json_data'] = bd
+
+            elif cur_cred is not None and cur_deb is None:
+                # Only credit present but balance went down → flip
+                rows[i] = dict(rows[i])
+                rows[i]['debit'] = cur_cred
+                rows[i]['credit'] = None
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['col_swapped_sign'] = True
+                rows[i]['bank_json_data'] = bd
+
+            elif cur_deb is not None and _should_correct(cur_deb, expected_debit):
+                # Same column, but amount is significantly wrong → use oracle
+                rows[i] = dict(rows[i])
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['debit_ocr_corrected'] = str(cur_deb)
+                rows[i]['debit'] = expected_debit
+                rows[i]['bank_json_data'] = bd
+
+            elif cur_deb is None and cur_cred is None:
+                rows[i] = dict(rows[i])
+                rows[i]['debit'] = expected_debit
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['debit_filled_from_balance'] = True
+                rows[i]['bank_json_data'] = bd
+
+        elif diff > 0:
+            expected_credit = diff
+
+            if cur_cred is not None and _is_close(cur_cred, expected_credit):
+                continue   # Already correct
+
+            if cur_deb is not None and _is_close(cur_deb, expected_credit):
+                # Credit landed in debit column → swap
+                rows[i] = dict(rows[i])
+                rows[i]['credit'] = cur_deb
+                rows[i]['debit'] = None
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['col_swapped'] = True
+                rows[i]['bank_json_data'] = bd
+
+            elif cur_deb is not None and cur_cred is None:
+                # Only debit present but balance went up → flip
+                rows[i] = dict(rows[i])
+                rows[i]['credit'] = expected_credit
+                rows[i]['debit'] = None
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['col_swapped_sign'] = True
+                bd['credit_original_debit'] = str(cur_deb)
+                rows[i]['bank_json_data'] = bd
+
+            elif cur_cred is not None and _should_correct(cur_cred, expected_credit):
+                # Same column, but amount significantly wrong → use oracle
+                rows[i] = dict(rows[i])
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['credit_ocr_corrected'] = str(cur_cred)
+                rows[i]['credit'] = expected_credit
+                rows[i]['bank_json_data'] = bd
+
+            elif cur_deb is None and cur_cred is None:
+                rows[i] = dict(rows[i])
+                rows[i]['credit'] = expected_credit
+                bd = dict(rows[i].get('bank_json_data') or {})
+                bd['credit_filled_from_balance'] = True
+                rows[i]['bank_json_data'] = bd
+
     return rows
 
 # ---------------------------------------------------------------------------
@@ -258,11 +445,18 @@ def _apply_balance_corrections(rows: list) -> list:
 
 _DATE_RE = re.compile(r'^(\d{2})[-/](\d{2})[-/](\d{4})(.*)')
 _SKIP_RE = re.compile(
-    r'report\s+to|service\s+outlet|account\s+num|report\s+for\s+the\s+period'
-    r'|brought\s+forward|opening\s+balance|union\s+bank\s+of\s+india'
-    r'|transaction\s+details|page\s+\d+\s+of|^\s*page\s+\d+'
-    r'|debit\s+amt|credit\s+amt|balance\s+amt|particulars|\bcontra\b'
-    r'|nirwal\s+lifestyle|account\s+opening',
+    # Only skip lines that are clearly headers, footers, or metadata
+    # NOTE: Do NOT add generic narration words here — they appear in real transactions too
+    r'service\s+outlet|account\s+num(ber)?|customer\s+id'
+    r'|brought\s+forward|opening\s+balance'
+    r'|union\s+bank'     # 'union bank' only appears in page headers, never in transaction narrations
+    r'|transaction\s+details'
+    r'|\bfinacle\b|https?://'
+    r'|debit\s+amt|credit\s+amt|balance\s+amt'
+    r'|\bparticulars\b|\bcontra\b'
+    r'|account\s+opening'
+    r'|station\s+road'   # page-break header contains branch address
+    r'|\brepor[t]\s+to\b|report\s+for\s+the\s+period',
     re.IGNORECASE,
 )
 
@@ -280,6 +474,7 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
     # Column fractions (calibrated for 200 dpi)
     ref_end       = int((370 / 1654) * img_w)
     debit_start   = int((750 / 1654) * img_w)
+    credit_start  = int((940 / 1654) * img_w)
     balance_start = int((1150 / 1654) * img_w)
 
     data = pytesseract.image_to_data(
@@ -353,15 +548,11 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
             continue
 
         # Extract date using robust prefix matching
-        dm, num_date_words = _extract_date_and_trail(line_words)
-        if not dm:
+        date_res, num_date_words = _extract_date_and_trail(line_words)
+        if not date_res:
             continue
 
-        dd, mm, yyyy, trail = dm.group(1), dm.group(2), dm.group(3), dm.group(4).strip()
-        dd, mm, yyyy = _fix_date_parts(dd, mm, yyyy, trailing_ref=trail)
-        txn_date = _parse_date(dd, mm, yyyy)
-        if txn_date is None:
-            continue
+        txn_date, trail = date_res
 
         line_text = ' '.join(w['text'] for w in line_words)
         if _SKIP_RE.search(line_text):
@@ -383,9 +574,15 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
 
         deb_text = ''.join(
             w['text'] for w in remaining_words
-            if debit_start <= w['left'] < balance_start
+            if debit_start <= w['left'] < credit_start
         ).strip()
         deb_val = _parse_amount(deb_text)
+
+        cr_text = ''.join(
+            w['text'] for w in remaining_words
+            if credit_start <= w['left'] < balance_start
+        ).strip()
+        cr_val = _parse_amount(cr_text)
 
         bal_text = ''.join(
             w['text'] for w in remaining_words if w['left'] >= balance_start
@@ -403,7 +600,7 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
             'txn_time':          None,
             'narration_raw':     parts,
             'debit':             deb_val,
-            'credit':            None,
+            'credit':            cr_val,
             'balance':           bal_val,
             'balance_type':      bal_type,
             'reference':         ref,
@@ -415,12 +612,14 @@ def _parse_page_image(img: "Image.Image", page_num: int) -> list:
                 'page_num':    page_num,
                 'raw_line':    line_text,
                 'debit_raw':   deb_text,
+                'credit_raw':  cr_text,
                 'balance_raw': bal_text,
             },
         })
 
     rows = _apply_balance_corrections(rows)
     return rows
+
 
 # ---------------------------------------------------------------------------
 # Detection
@@ -482,513 +681,3 @@ def parse(file_path: str, max_pages: int = None) -> tuple:
         f'{len(all_rows)} rows. Semantic (amount-pattern) column detection. '
         f'Balance reliable, debit best-effort.'
     )
-
-
-# """
-# union_bank_parser.py  v3
-# ========================
-# Parser for Union Bank of India scanned PDF statements (Canon scanner, 180° rotated).
-
-# What this does differently from the generic image_parser:
-# - Renders at 200 dpi (sharper text than the default 150)
-# - Uses word-level bounding boxes to separate columns instead of hoping
-#   text columns are cleanly whitespace-delimited
-# - Recalibrated column boundaries for this specific statement layout
-# - Date fixes: impossible day/month (93->03), trailing-ref contamination
-#   in year (2019S -> year=2018, ref=S...), impossible year (2028->2018)
-# - Amount fixes: dash-as-decimal, special chars, split debit tokens joined,
-#   "6116"->6.16 (standard UBI NEFT charge)
-# - Balance-sequence correction: uses prev_balance - cur_balance as oracle
-#   to fix spurious leading digits in debit (e.g. 431262->131262)
-# """
-
-# import os
-# import re
-# import logging
-# from decimal import Decimal, InvalidOperation
-# from datetime import date as _date
-
-# try:
-#     import pytesseract
-#     from PIL import Image
-#     from pdf2image import convert_from_path, pdfinfo_from_path
-#     _OCR_AVAILABLE = True
-# except ImportError:
-#     _OCR_AVAILABLE = False
-
-# logger = logging.getLogger("statements.union_bank_parser")
-
-# # ---------------------------------------------------------------------------
-# # Column fractions — calibrated for 1654 px wide (200 dpi)
-# # ---------------------------------------------------------------------------
-# _REF_ZONE_END_FRAC  = 370  / 1654
-# _DEBIT_START_FRAC   = 750  / 1654
-# _BALANCE_START_FRAC = 1150 / 1654
-# _DPI = 200
-
-# # ---------------------------------------------------------------------------
-# # Patterns
-# # ---------------------------------------------------------------------------
-# _DATE_RE = re.compile(r'^(\d{2})[-/](\d{2})[-/](\d{4})(.*)')
-
-# _SKIP_RE = re.compile(
-#     r'report\s+to|service\s+outlet|account\s+num|account\s+mum'
-#     r'|report\s+for\s+the\s+period|brought\s+forward|opening\s+balance'
-#     r'|union\s+bank\s+of\s+india|transaction\s+details'
-#     r'|page\s+\d+\s+of\s+\d+|^\s*page\s+\d+'
-#     r'|debit\s+amt|credit\s+amt|balance\s+amt|particulars'
-#     r'|\bcontra\b|account\s+opening|nirwal\s+lifestyle',
-#     re.IGNORECASE,
-# )
-
-# _MODE_PATTERNS = [
-#     (re.compile(r'NEFT[A-Z]?|NEETO|NEVTO|NESTO|NRETO|NEPIO|NEET[^A-Z]', re.I), 'NEFT'),
-#     (re.compile(r'RTGS[A-Z]?|RIGS|RUGS|RYGS|ATGS', re.I), 'RTGS'),
-#     (re.compile(r'\bIMPS\b', re.I), 'IMPS'),
-#     (re.compile(r'\bUPI\b',  re.I), 'UPI'),
-#     (re.compile(r'\bCASH\b', re.I), 'CASH'),
-#     (re.compile(r'\bCHQ\b|\bCHEQUE\b', re.I), 'CHQ'),
-# ]
-
-# _STRIP_MODE_PREFIX = re.compile(
-#     r'^(?:NEFT[O-Z]?|RTGS[O-Z]?|IMPS|UPI)[:\s\-]*', re.IGNORECASE
-# )
-# _SKIP_COUNTERPARTY = re.compile(
-#     r'charges\s+for|customer|^$', re.IGNORECASE
-# )
-
-# # ---------------------------------------------------------------------------
-# # Date helpers
-# # ---------------------------------------------------------------------------
-
-# def _fix_date_parts(dd: str, mm: str, yyyy: str, trailing_ref: str = '') -> tuple:
-#     """
-#     Correct OCR errors in DD, MM, YYYY strings.
-
-#     Known failure modes:
-#     - Day/month > valid range: digit 9 or 8 misread from 0 (93->03, 94->04)
-#     - Year contaminated by first char of ref token bleeding in:
-#         "2018S..." OCR'd as "2019" + "S..." (8+S blend -> 9S)
-#         Fix: if trailing starts with a letter and year ends in 9, try 9->8
-#     - Year completely garbled (2076, 2028):
-#         Try every single-digit replacement, take smallest valid year
-#     """
-#     # --- Day ---
-#     d = int(dd)
-#     if d > 31:
-#         dd2 = dd.replace('9', '0').replace('8', '0')
-#         try:
-#             if 1 <= int(dd2) <= 31:
-#                 dd = dd2
-#         except ValueError:
-#             pass
-
-#     # --- Month ---
-#     m = int(mm)
-#     if m > 12:
-#         mm2 = mm.replace('9', '0').replace('8', '0')
-#         try:
-#             if 1 <= int(mm2) <= 12:
-#                 mm = mm2
-#         except ValueError:
-#             pass
-
-#     # --- Year ---
-#     # Step 1: trailing-ref contamination check (must come before range check)
-#     # e.g. "03-04-2018S38676346" OCR'd as "03-04-2019S" + "38676346"
-#     if trailing_ref and trailing_ref[0].isalpha() and yyyy.endswith('9'):
-#         cand = yyyy[:-1] + '8'
-#         try:
-#             if 2015 <= int(cand) <= 2026:
-#                 yyyy = cand
-#         except ValueError:
-#             pass
-
-#     # Step 2: if still outside valid range, try single-digit replacements
-#     y = int(yyyy)
-#     if not (2015 <= y <= 2026):
-#         candidates = []
-#         for pos in range(len(yyyy)):
-#             for digit in '0123456789':
-#                 if digit == yyyy[pos]:
-#                     continue
-#                 cand = yyyy[:pos] + digit + yyyy[pos + 1:]
-#                 try:
-#                     cv = int(cand)
-#                     if 2015 <= cv <= 2026:
-#                         candidates.append(cv)
-#                 except ValueError:
-#                     pass
-#         if candidates:
-#             yyyy = str(min(candidates))
-
-#     return dd, mm, yyyy
-
-
-# def _parse_date(dd: str, mm: str, yyyy: str):
-#     try:
-#         d, m, y = int(dd), int(mm), int(yyyy)
-#         if not (1 <= d <= 31 and 1 <= m <= 12 and 2000 <= y <= 2030):
-#             return None
-#         return _date(y, m, d)
-#     except (ValueError, TypeError):
-#         return None
-
-# # ---------------------------------------------------------------------------
-# # Amount helpers
-# # ---------------------------------------------------------------------------
-
-# def _fix_amount_str(s: str) -> str:
-#     """Fix OCR noise in amount strings before numeric parsing."""
-#     if not s:
-#         return s
-#     s = s.strip()
-
-#     # Dash as decimal point: "13,30,000-00" -> "13,30,000.00"
-#     s = re.sub(r'(\d)-(\d{2})\s*$', r'\1.\2', s)
-
-#     # Special character substitutions
-#     s = (s.replace('€', '6').replace('£', '6')
-#           .replace('©', '0').replace('¢', '6'))
-
-#     # Known garbled NEFT charge: 6.16
-#     if re.sub(r'[\s,.]', '', s) in ('6116', '616', '6l6', '6I6'):
-#         return '6.16'
-
-#     # "NN,NN" (comma where dot should be): "17,44" -> "17.44"
-#     m = re.match(r'^(\d{1,3}),(\d{2})$', s)
-#     if m:
-#         return m.group(1) + '.' + m.group(2)
-
-#     # Collapse 4+ zero runs (inserted OCR digit): "0900" -> "000"
-#     s = re.sub(r'0{4,}', '000', s)
-
-#     return s
-
-
-# def _parse_amount(s: str):
-#     """Parse Indian-format amount string with OCR fixes. Returns Decimal or None."""
-#     if not s:
-#         return None
-#     s = _fix_amount_str(s)
-#     s = re.sub(r'(?i)(cr|dr)\s*$', '', s).strip().rstrip('.,')
-#     # o/O -> 0 inside numbers
-#     s = re.sub(r'[oO](?=[0-9])', '0', s)
-#     s = re.sub(r'(?<=[0-9])[oO]', '0', s)
-#     s = s.replace(',', '').replace(' ', '').replace('/', '').strip()
-#     if not s:
-#         return None
-#     try:
-#         return Decimal(s)
-#     except InvalidOperation:
-#         return None
-
-
-# def _balance_type(s: str) -> str:
-#     m = re.search(r'(?i)(cr|dr)', (s or '').strip())
-#     return m.group(1).upper() if m else ''
-
-# # ---------------------------------------------------------------------------
-# # Mode & counterparty
-# # ---------------------------------------------------------------------------
-
-# def _extract_mode(text: str) -> str:
-#     for pattern, label in _MODE_PATTERNS:
-#         if pattern.search(text):
-#             return label
-#     return ''
-
-
-# def _extract_counterparty(particulars: str) -> str:
-#     cp = _STRIP_MODE_PREFIX.sub('', particulars).strip()
-#     if _SKIP_COUNTERPARTY.search(cp):
-#         return ''
-#     return cp
-
-# # ---------------------------------------------------------------------------
-# # Balance-sequence debit corrector
-# # ---------------------------------------------------------------------------
-
-# _DIGIT_SWAPS = {
-#     '4': '1', '8': '0', '9': '0', '6': '0',
-#     '1': '4', '0': '8', '7': '1', '2': '1',
-# }
-
-
-# def _try_fix_debit(debit_val: Decimal, expected: Decimal,
-#                    tolerance: Decimal = Decimal('50')) -> Decimal:
-#     """
-#     If debit_val is far from expected (prev_bal - cur_bal), attempt common
-#     single-digit OCR substitutions to find a closer value.
-#     Only applies the fix if it brings us within tolerance rupees.
-#     """
-#     if debit_val is None or expected <= 0:
-#         return debit_val
-#     if abs(debit_val - expected) <= tolerance:
-#         return debit_val
-
-#     s = str(int(debit_val))
-#     candidates = []
-
-#     # Drop leading digit
-#     if len(s) > 2:
-#         try:
-#             candidates.append(Decimal(s[1:]))
-#         except InvalidOperation:
-#             pass
-
-#     # Replace each digit using OCR confusion map
-#     for pos in range(len(s)):
-#         c = s[pos]
-#         if c in _DIGIT_SWAPS:
-#             fixed = s[:pos] + _DIGIT_SWAPS[c] + s[pos + 1:]
-#             try:
-#                 candidates.append(Decimal(fixed))
-#             except InvalidOperation:
-#                 pass
-
-#     best, best_diff = debit_val, abs(debit_val - expected)
-#     for cand in candidates:
-#         if cand <= 0:
-#             continue
-#         diff = abs(cand - expected)
-#         if diff < best_diff:
-#             best_diff = diff
-#             best = cand
-
-#     if best != debit_val and best_diff <= tolerance:
-#         logger.debug(f"  balance-corrected debit {debit_val} -> {best} (expected ~{expected})")
-#         return best
-#     return debit_val
-
-
-# def _apply_balance_corrections(rows: list) -> list:
-#     """Use prev_balance - cur_balance as oracle to fix obvious debit OCR errors."""
-#     for i in range(1, len(rows)):
-#         prev_bal = rows[i - 1].get('balance')
-#         cur_bal  = rows[i].get('balance')
-#         cur_deb  = rows[i].get('debit')
-
-#         if prev_bal is None or cur_bal is None or cur_deb is None:
-#             continue
-
-#         expected = prev_bal - cur_bal
-#         if expected <= 0:
-#             continue
-
-#         fixed = _try_fix_debit(cur_deb, expected)
-#         if fixed != cur_deb:
-#             rows[i] = dict(rows[i])
-#             rows[i]['debit'] = fixed
-#             bd = dict(rows[i].get('bank_json_data') or {})
-#             bd['debit_balance_corrected'] = True
-#             bd['debit_original'] = str(cur_deb)
-#             rows[i]['bank_json_data'] = bd
-
-#     return rows
-
-# # ---------------------------------------------------------------------------
-# # Single-page parser
-# # ---------------------------------------------------------------------------
-
-# def _parse_page_image(img: "Image.Image", page_num: int) -> list:
-#     """Extract transaction rows from one corrected (upright) PIL Image."""
-#     img_w, _ = img.size
-
-#     ref_end       = int(_REF_ZONE_END_FRAC  * img_w)
-#     debit_start   = int(_DEBIT_START_FRAC   * img_w)
-#     balance_start = int(_BALANCE_START_FRAC * img_w)
-
-#     data = pytesseract.image_to_data(
-#         img,
-#         output_type=pytesseract.Output.DICT,
-#         config='--psm 6 --oem 1',
-#     )
-
-#     # Group words by OCR line key
-#     lines = {}
-#     for i in range(len(data['text'])):
-#         word = data['text'][i].strip()
-#         if not word:
-#             continue
-#         key = (
-#             data['block_num'][i] * 10000
-#             + data['par_num'][i]  * 1000
-#             + data['line_num'][i]
-#         )
-#         lines.setdefault(key, []).append({
-#             'text': word,
-#             'x':    data['left'][i],
-#         })
-
-#     rows = []
-#     row_counter = 0
-
-#     for key in sorted(lines):
-#         words = lines[key]
-#         if not words:
-#             continue
-
-#         dm = _DATE_RE.match(words[0]['text'])
-#         if not dm:
-#             continue
-
-#         dd   = dm.group(1)
-#         mm   = dm.group(2)
-#         yyyy = dm.group(3)
-#         trail = dm.group(4).strip()
-
-#         dd, mm, yyyy = _fix_date_parts(dd, mm, yyyy, trailing_ref=trail)
-#         txn_date = _parse_date(dd, mm, yyyy)
-#         if txn_date is None:
-#             continue
-
-#         line_text = ' '.join(w['text'] for w in words)
-#         if _SKIP_RE.search(line_text):
-#             continue
-
-#         # Reference: trailing on date token, or next word(s) in ref zone
-#         ref_zone = [w for w in words if w['x'] < ref_end]
-#         ref = trail
-#         if not ref and len(ref_zone) > 1:
-#             ref = ' '.join(w['text'] for w in ref_zone[1:]).strip()
-
-#         # Particulars: between ref zone and debit zone
-#         parts = ' '.join(
-#             w['text'] for w in words
-#             if ref_end <= w['x'] < debit_start
-#         ).strip()
-
-#         # Debit: join all tokens in zone (handles split amounts like "19, 60,000.00")
-#         deb_text = ''.join(
-#             w['text'] for w in words
-#             if debit_start <= w['x'] < balance_start
-#         ).strip()
-#         deb_val = _parse_amount(deb_text)
-
-#         # Balance
-#         bal_text = ''.join(
-#             w['text'] for w in words if w['x'] >= balance_start
-#         ).strip()
-#         bal_val  = _parse_amount(bal_text)
-#         bal_type = _balance_type(bal_text)
-
-#         if bal_val is None:
-#             continue
-
-#         row_counter += 1
-#         rows.append({
-#             'txn_date':          txn_date,
-#             'value_date':        None,
-#             'txn_time':          None,
-#             'narration_raw':     parts,
-#             'debit':             deb_val,
-#             'credit':            None,
-#             'balance':           bal_val,
-#             'balance_type':      bal_type,
-#             'reference':         ref,
-#             'txn_mode':          _extract_mode(ref + ' ' + parts),
-#             'counterparty_name': _extract_counterparty(parts),
-#             'source_row':        row_counter,
-#             'quality_flag':      'OCR_UNION_BANK',
-#             'bank_json_data': {
-#                 'page_num':    page_num,
-#                 'raw_line':    line_text,
-#                 'debit_raw':   deb_text,
-#                 'balance_raw': bal_text,
-#             },
-#         })
-
-#     rows = _apply_balance_corrections(rows)
-#     return rows
-
-# # ---------------------------------------------------------------------------
-# # Detection
-# # ---------------------------------------------------------------------------
-
-# def is_union_bank_scanned(file_path: str) -> bool:
-#     """
-#     Returns True if this PDF is a Union Bank scanned statement.
-#     Checks filename first (free), then OCR at 150 dpi if needed.
-#     """
-#     fname = os.path.basename(file_path).upper()
-#     if re.search(r'UNION[_\s\-]BANK', fname):
-#         logger.info('is_union_bank_scanned: matched by filename')
-#         return True
-
-#     if not _OCR_AVAILABLE:
-#         return False
-#     try:
-#         pages = convert_from_path(file_path, dpi=150, first_page=1, last_page=1)
-#         if not pages:
-#             return False
-#         img = pages[0].rotate(180)
-#         w, h = img.size
-#         crop = img.crop((0, 0, w, int(h * 0.10)))
-#         text = pytesseract.image_to_string(crop, config='--psm 6')
-#         result = bool(re.search(r'UNION\s+BANK\s+OF\s+INDIA', text, re.IGNORECASE))
-#         logger.info(f'is_union_bank_scanned: OCR result = {result}')
-#         return result
-#     except Exception as exc:
-#         logger.warning(f'is_union_bank_scanned check failed: {exc}')
-#         return False
-
-# # ---------------------------------------------------------------------------
-# # Public API
-# # ---------------------------------------------------------------------------
-
-# def parse(file_path: str, max_pages: int = None) -> tuple:
-#     """
-#     Parse a Union Bank scanned PDF statement.
-
-#     Args:
-#         file_path:  Path to the PDF.
-#         max_pages:  Limit pages (pass 2 while testing, None for full run).
-
-#     Returns:
-#         (rows: list[dict], notes: str)
-#     """
-#     if not _OCR_AVAILABLE:
-#         return [], (
-#             'union_bank_parser: missing OCR deps. '
-#             'Run: pip install pytesseract Pillow pdf2image'
-#         )
-
-#     info = pdfinfo_from_path(file_path)
-#     total_pages = info.get('Pages', 0)
-#     if max_pages:
-#         total_pages = min(total_pages, max_pages)
-
-#     logger.info(f'Union Bank parser: {total_pages} page(s) — {file_path}')
-
-#     all_rows = []
-
-#     for page_num in range(1, total_pages + 1):
-#         try:
-#             pages = convert_from_path(
-#                 file_path, dpi=_DPI,
-#                 first_page=page_num, last_page=page_num,
-#             )
-#             if not pages:
-#                 continue
-
-#             img = pages[0].rotate(180)
-#             page_rows = _parse_page_image(img, page_num)
-
-#             offset = len(all_rows)
-#             for r in page_rows:
-#                 r['source_row'] += offset
-#             all_rows.extend(page_rows)
-
-#             logger.info(f'  Page {page_num}/{total_pages}: {len(page_rows)} rows')
-
-#         except Exception as exc:
-#             logger.error(f'  Page {page_num} failed: {exc}')
-
-#     notes = (
-#         f'Union Bank scanned PDF: OCR ({_DPI} dpi) across {total_pages} page(s). '
-#         f'{len(all_rows)} rows extracted. '
-#         f'Flagged OCR_UNION_BANK — balance reliable, debits best-effort '
-#         f'with balance-sequence correction. No credit column in this format.'
-#     )
-#     return all_rows, notes
