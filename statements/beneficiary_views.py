@@ -4,6 +4,9 @@ Beneficiary Identification Views
 Views for running identification, analyst review, and counterparty ledger display
 """
 
+import re
+from difflib import SequenceMatcher
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -14,6 +17,44 @@ from django.utils import timezone
 
 from .models import Statement, Transaction, Counterparty, BeneficiaryIdentification
 from .beneficiary_engine import BeneficiaryEngine
+
+
+def _normalize_for_matching(name):
+    """Aggressively normalize a name for fuzzy duplicate comparison."""
+    n = (name or '').upper()
+    n = re.sub(r'[^A-Z0-9]+', ' ', n)
+    return re.sub(r'\s+', ' ', n).strip()
+
+
+def find_matching_counterparty(statement, name, threshold=0.82):
+    """
+    Fuzzy-match a beneficiary name against existing counterparties for this
+    statement, so near-duplicate extractions (OCR noise, missing/extra
+    letters, stray commas) merge into one ledger entry instead of creating
+    a new counterparty every time.
+    """
+    norm_target = _normalize_for_matching(name)
+    best_match, best_score = None, 0.0
+
+    for cp in statement.counterparties.all():
+        norm_existing = _normalize_for_matching(cp.name)
+
+        if norm_existing == norm_target:
+            return cp
+
+        score = SequenceMatcher(None, norm_target, norm_existing).ratio()
+
+        # token-overlap boost — catches cases like "NIRMAL LIFESTYLE LIM"
+        # vs "NIRMAL BI FESTYLE LIM" where character-level ratio is weaker
+        t1, t2 = set(norm_target.split()), set(norm_existing.split())
+        if t1 and t2:
+            overlap = len(t1 & t2) / max(len(t1), len(t2))
+            score = max(score, overlap)
+
+        if score > best_score:
+            best_score, best_match = score, cp
+
+    return best_match if best_score >= threshold else None
 
 
 @login_required
@@ -70,22 +111,28 @@ def start_beneficiary_identification_view(request, statement_id):
             
             transaction = Transaction.objects.get(id=txn_id)
             
-            # Get or create counterparty
+            # Get or create counterparty (with fuzzy-match merge)
             counterparty_key = result_data['beneficiary_name']
-            if counterparty_key not in created_counterparties:
-                counterparty, created = Counterparty.objects.get_or_create(
-                    statement=statement,
-                    name=counterparty_key,
-                    defaults={
-                        'beneficiary_type': result_data.get('beneficiary_type', 'UNKNOWN'),
-                        'identification_method': 'RULE_BASED' if status == 'IDENTIFIED_LAYER1' else 'OLLAMA',
-                        'highest_confidence': result_data['confidence'],
-                    }
-                )
+            counterparty = created_counterparties.get(counterparty_key)
+
+            if counterparty is None:
+                # try to merge into an existing near-duplicate first
+                counterparty = find_matching_counterparty(statement, counterparty_key)
+
+                if counterparty is None:
+                    counterparty = Counterparty.objects.create(
+                        statement=statement,
+                        name=counterparty_key,
+                        beneficiary_type=result_data.get('beneficiary_type', 'UNKNOWN'),
+                        identification_method='RULE_BASED' if status == 'IDENTIFIED_LAYER1' else 'OLLAMA',
+                        highest_confidence=result_data['confidence'],
+                    )
+                elif result_data['confidence'] > counterparty.highest_confidence:
+                    counterparty.highest_confidence = result_data['confidence']
+                    counterparty.save(update_fields=['highest_confidence'])
+
                 created_counterparties[counterparty_key] = counterparty
-            else:
-                counterparty = created_counterparties[counterparty_key]
-            
+
             # Update transaction
             transaction.beneficiary = counterparty
             transaction.counterparty_name = counterparty.name

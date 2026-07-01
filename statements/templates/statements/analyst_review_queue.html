@@ -1,25 +1,23 @@
 {% extends 'statements/base.html' %}
 {% block title %}Analyst Review Queue - {{ statement.original_filename }}{% endblock %}
 
+{% block topbar_back_btn %}
+<a href="{% url 'beneficiary_dashboard' statement.id %}" class="btn btn-light btn-sm me-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; transition: all 0.2s;" title="Back to Dashboard">
+  <i class="bi bi-arrow-left"></i>
+</a>
+{% endblock %}
+
+{% block topbar_title %}Analyst Review Queue{% endblock %}
+
+{% block topbar_subtitle %}
+<div class="text-muted" style="font-size: 0.75rem; font-weight: 500; margin-top: 1px;">
+  {{ statement.original_filename }} &mdash; <strong class="text-dark">{{ total_unidentified }}</strong> unidentified transactions
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="" style="background-color: #f8fafc; min-height: 100vh;">
-  
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <nav aria-label="breadcrumb">
-        <ol class="breadcrumb mb-1">
-          <li class="breadcrumb-item"><a href="{% url 'beneficiary_dashboard' statement.id %}" class="text-decoration-none text-muted">Dashboard</a></li>
-          <li class="breadcrumb-item active" aria-current="page">Review Queue</li>
-        </ol>
-      </nav>
-      <h2 class="fw-bold text-dark mb-1" style="font-size: 1.75rem;">Analyst Review Queue</h2>
-      <p class="text-muted mb-0">{{ statement.original_filename }} — <strong>{{ total_unidentified }}</strong> unidentified transactions</p>
-    </div>
-    
-    <a href="{% url 'beneficiary_dashboard' statement.id %}" class="btn btn-outline-secondary px-3" style="border-radius: 8px;">
-      <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
-    </a>
-  </div>
+
 
   <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
     <div class="card-body p-0">

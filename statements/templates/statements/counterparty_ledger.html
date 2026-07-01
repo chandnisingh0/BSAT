@@ -1,6 +1,20 @@
 {% extends 'statements/base.html' %}
 {% block title %}Counterparty Ledger - {{ statement.original_filename }}{% endblock %}
 
+{% block topbar_back_btn %}
+<a href="{% url 'beneficiary_dashboard' statement.id %}" class="btn btn-light btn-sm me-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; transition: all 0.2s;" title="Back to Dashboard">
+  <i class="bi bi-arrow-left"></i>
+</a>
+{% endblock %}
+
+{% block topbar_title %}Counterparty Ledger{% endblock %}
+
+{% block topbar_subtitle %}
+<div class="text-muted" style="font-size: 0.75rem; font-weight: 500; margin-top: 1px;">
+  {{ statement.original_filename }}
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
   body {
@@ -119,18 +133,20 @@
   }
   .table-custom thead th {
     background-color: #f8fafc;
-    color: #475569;
+    color: #64748b;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-    padding: 1rem 1.25rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.875rem 1.25rem;
     border-bottom: 1px solid #e2e8f0;
   }
   .table-custom tbody td {
-    padding: 1rem 1.25rem;
+    padding: 0.875rem 1.25rem;
     vertical-align: middle;
+    font-size: 0.875rem;
     color: #334155;
+    font-weight: 400;
     border-bottom: 1px solid #f1f5f9;
   }
   .table-custom tbody tr:last-child td {
@@ -194,16 +210,6 @@
   }
 </style>
 
-<div class="mb-4">
-  <a href="{% url 'beneficiary_dashboard' statement.id %}" class="btn btn-back-custom text-decoration-none d-inline-flex align-items-center gap-2">
-    ← Back to Dashboard
-  </a>
-</div>
-
-<div class="mb-4">
-  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">Counterparty Ledger</h2>
-  <p class="text-muted small mb-0">{{ statement.original_filename }}</p>
-</div>
 
 <div class="row g-3 mb-4">
   <div class="col-md-4">
@@ -298,10 +304,10 @@
         {% for cp in counterparties %}
         <tr>
           <td>
-            <span class="fw-bold text-dark d-inline-flex align-items-center gap-2">
+            <span class="text-dark d-inline-flex align-items-center gap-2" style="font-weight: 500; font-size: 0.875rem;">
               {{ cp.name }}
               {% if not cp.above_aggregate_threshold %}
-              <span class="color-low-alert" title="Below aggregate threshold">LOW THRESHOLD</span>
+              <span class="color-low-alert" title="Below aggregate threshold">LOW</span>
               {% endif %}
             </span>
           </td>
@@ -324,12 +330,12 @@
           <td class="text-secondary fw-semibold">₹ {{ cp.total_credit|floatformat:2 }}</td>
           <td>
             {% if cp.net_position >= 0 %}
-            <span class="fw-bold text-success">+₹ {{ cp.net_position|floatformat:2 }}</span>
+            <span class="fw-semibold text-success" style="font-size: 0.875rem;">+₹ {{ cp.net_position|floatformat:2 }}</span>
             {% else %}
-            <span class="fw-bold text-danger">-₹ {{ cp.net_position|floatformat:2 }}</span>
+            <span class="fw-semibold text-danger" style="font-size: 0.875rem;">-₹ {{ cp.net_position|floatformat:2 }}</span>
             {% endif %}
           </td>
-          <td class="text-dark fw-bold">{{ cp.transaction_count }}</td>
+          <td class="text-dark fw-medium">{{ cp.transaction_count }}</td>
           <td style="text-align: right;">
             <a href="{% url 'counterparty_detail' statement.id cp.id %}" class="btn-table-action">
               View

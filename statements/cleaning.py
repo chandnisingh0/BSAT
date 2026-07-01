@@ -189,7 +189,7 @@ class ValidationEngine:
                         transaction=txn1,
                         severity='INFO',
                         code='REVERSAL_PAIR',
-                        message=f'Reversal pair with txn {txn2.id}',
+                        message=f'Reversal pair with Row #{txn2.source_row}',
                         resolution_required=False
                     )
                     continue
@@ -203,7 +203,7 @@ class ValidationEngine:
                         transaction=txn1,
                         severity='HIGH',
                         code='EXACT_DUPLICATE',
-                        message=f'Exact duplicate with txn {txn2.id}',
+                        message=f'Exact duplicate with Row #{txn2.source_row}',
                         resolution_required=False
                     )
                     checked.add(txn2.id)
@@ -218,7 +218,7 @@ class ValidationEngine:
                         transaction=txn1,
                         severity='HIGH',
                         code='PROBABLE_DUPLICATE',
-                        message=f'Probable duplicate with txn {txn2.id}',
+                        message=f'Probable duplicate with Row #{txn2.source_row}',
                         resolution_required=True
                     )
                     continue
@@ -231,7 +231,7 @@ class ValidationEngine:
                         transaction=txn1,
                         severity='MEDIUM',
                         code='NEAR_DUPLICATE',
-                        message=f'Near duplicate with txn {txn2.id}',
+                        message=f'Near duplicate with Row #{txn2.source_row}',
                         resolution_required=False
                     )
     
@@ -350,11 +350,14 @@ class ValidationEngine:
         """Assign data reliability rating."""
         critical_count = sum(1 for i in self.issues if i['severity'] == 'CRITICAL')
         high_count = sum(1 for i in self.issues if i['severity'] == 'HIGH')
+        medium_count = sum(1 for i in self.issues if i['severity'] == 'MEDIUM')
         
-        if critical_count == 0 and high_count == 0:
+        if critical_count == 0 and high_count == 0 and medium_count == 0:
             return 'CLEAN'
-        elif critical_count == 0:
+        elif critical_count == 0 and high_count == 0:
             return 'ACCEPTABLE'
+        elif critical_count == 0:
+            return 'QUALIFIED'
         else:
             reviewed = self.statement.validation_reviewed_by is not None
             return 'QUALIFIED' if reviewed else 'UNRELIABLE'

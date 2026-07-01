@@ -2,6 +2,40 @@
 {% block title %}Transactions - {{ statement.original_filename }}{% endblock %}
 {% block nav_upload_active %}active{% endblock %}
 
+{% block topbar_back_btn %}
+<a href="{% url 'upload' %}" class="btn btn-light btn-sm me-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; transition: all 0.2s;" title="Workspace Dashboards">
+  <i class="bi bi-arrow-left"></i>
+</a>
+{% endblock %}
+
+{% block topbar_title %}Statement Actions{% endblock %}
+
+{% block topbar_subtitle %}
+<div class="text-muted" style="font-size: 0.75rem; font-weight: 500; margin-top: 1px;">
+  {{ statement.original_filename }}
+</div>
+{% endblock %}
+
+{% block topbar_actions %}
+<div class="d-flex gap-2">
+  <a href="{% url 'cleaning_dashboard' statement.id %}" 
+     class="btn btn-action-primary shadow-sm py-1 px-3" style="font-size: 0.8rem;"
+     title="Clean & Validate">
+    <i class="bi bi-shield-check me-1"></i> Clean & Validate
+  </a>
+  <a href="{% url 'beneficiary_dashboard' statement.id %}" 
+     class="btn btn-action-outline shadow-sm py-1 px-3" style="font-size: 0.8rem;"
+     title="Beneficiaries">
+    <i class="bi bi-people me-1"></i> Beneficiaries
+  </a>
+  <a href="{% url 'confirm_delete_statement' statement.id %}" 
+     class="btn btn-outline-danger shadow-sm py-1 px-3" style="font-size: 0.8rem;"
+     title="Delete">
+    <i class="bi bi-trash me-1"></i> Delete
+  </a>
+</div>
+{% endblock %}
+
 {% block extra_css %}
 <style>
   /* Back Link & Navigation Heading Hierarchy */
@@ -414,37 +448,6 @@
 {% endblock %}
 
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="enterprise-page-header m-0">Statement Actions</h2>
-  
-  <div class="d-flex gap-2">
-    <a href="{% url 'cleaning_dashboard' statement.id %}" 
-       class="btn btn-filter-action btn-action-sm d-inline-flex align-items-center gap-1" 
-       data-bs-toggle="tooltip" 
-       data-bs-placement="top" 
-       title="Identify anomalies, structure text, and validate records within the statement">
-      <i class="bi bi-shield-check"></i> Clean & Validate
-    </a>
-    
-    <a href="{% url 'beneficiary_dashboard' statement.id %}" 
-       class="btn btn-filter-reset btn-action-sm d-inline-flex align-items-center gap-1" 
-       data-bs-toggle="tooltip" 
-       data-bs-placement="top" 
-       title="Analyze counterparty entities, high-value transfer targets, and volume metrics">
-      <i class="bi bi-people"></i> Beneficiaries
-    </a>
-    
-    <a href="{% url 'confirm_delete_statement' statement.id %}" 
-       class="btn btn-action-danger btn-action-sm d-inline-flex align-items-center gap-1" 
-       data-bs-toggle="tooltip" 
-       data-bs-placement="top" 
-       title="Permanently remove this bank statement and all associated ledger records">
-      <i class="bi bi-trash"></i> Delete
-    </a>
-  </div>
-</div>
-
 {% if statement.extraction_status == "processing" or statement.extraction_status == "pending" %}
 <div id="extraction-progress-banner" class="extraction-progress-banner">
     <div class="d-flex align-items-center gap-3">
@@ -459,9 +462,6 @@
 
 <div id="live-row-ticker" class="live-row-ticker" style="display:none;"></div>
 
-  <a href="{% url 'upload' %}" class="premium-back-link">
-    <i class="bi bi-arrow-left"></i> Workspace Dashboards
-  </a>
   <h1 class="enterprise-page-header">{{ statement.original_filename }}</h1>
   
   <div class="statement-meta-strip">

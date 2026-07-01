@@ -102,6 +102,10 @@
     .sidebar-container.collapsed-sidebar .sidebar-header { justify-content: center !important; padding: 1.5rem 0; }
     .sidebar-container.collapsed-sidebar .nav-item-link { justify-content: center; padding: 0.8rem 0; }
     .sidebar-container.collapsed-sidebar .logo-box { display: none !important; }
+    .sidebar-container.collapsed-sidebar .profile-details,
+    .sidebar-container.collapsed-sidebar .profile-logout-btn { display: none !important; }
+    .sidebar-container.collapsed-sidebar .sidebar-footer { padding: 1.25rem 0 !important; }
+    .sidebar-container.collapsed-sidebar .profile-block { justify-content: center !important; width: 100%; }
 
     .main-content-area { flex-grow: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     .app-top-bar { height: 70px; background-color: white; border-bottom: 1px solid white; display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; flex-shrink: 0; }
@@ -187,33 +191,46 @@
         {% endif %}
       </nav>
     </div>
+
+    <!-- Sidebar Footer / User Profile -->
+    <div class="sidebar-footer" style="padding: 1.25rem; border-top: 1px solid rgba(255, 255, 255, 0.05); background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(4px);">
+      <div class="d-flex align-items-center justify-content-between profile-block">
+        <div class="d-flex align-items-center gap-3">
+          <div style="width: 38px; height: 38px; background: var(--brand-gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: #071324; flex-shrink: 0; box-shadow: 0 4px 10px rgba(197, 160, 89, 0.3);">
+            {{ request.user.full_name|slice:":2"|upper }}
+          </div>
+          <div class="profile-details" style="line-height: 1.2; max-width: 110px;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #ffffff; margin-bottom: 2px;" class="text-truncate" title="{{ request.user.full_name }}">{{ request.user.full_name }}</div>
+            <div style="font-size: 0.65rem; color: #94a3b8; letter-spacing: 0.5px; text-transform: uppercase;">{{ request.user.get_role_display }}</div>
+          </div>
+        </div>
+        <a href="{% url 'logout' %}" class="btn btn-link p-0 profile-logout-btn" style="color: #ef4444; transition: color 0.2s;" title="Sign Out" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#ef4444'">
+          <i class="bi bi-box-arrow-right fs-5"></i>
+        </a>
+      </div>
+    </div>
   </aside>
 
   <main class="main-content-area">
 
     <header class="app-top-bar">
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center flex-grow-1 gap-2">
         <button class="btn btn-light d-lg-none p-2" id="mobileSidebarMenuTrigger" style="border-radius: 8px;">
           <i class="bi bi-list fs-5"></i>
         </button>
-        <h5 class="fw-bold m-0 text-dark" style="font-size: 1.1rem; letter-spacing: -0.2px;">Bank Statement Analysis Tool</h5>
+        
+        {% block topbar_back_btn %}{% endblock %}
+
+        <div>
+          <h5 class="fw-bold m-0 text-dark" style="font-size: 1.1rem; letter-spacing: -0.2px;">
+            {% block topbar_title %}Bank Statement Analysis Tool{% endblock %}
+          </h5>
+          {% block topbar_subtitle %}{% endblock %}
+        </div>
       </div>
 
       <div class="d-flex align-items-center gap-3">
-          <div class="user-pill-dropdown me-2">
-            <div class="d-flex align-items-center gap-2">
-              <div style="width: 35px; height: 35px; background: var(--brand-gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: #071324;">
-                {{ request.user.full_name|slice:":2"|upper }}
-              </div>
-              <div style="line-height: 1.2;" class="line-details">
-                <div style="font-size: 0.82rem; font-weight: 600; color: black; margin-bottom: 2px;">{{ request.user.full_name }}</div>
-                <div style="font-size: 0.68rem; color: black;">{{ request.user.get_role_display }}</div>
-              </div>
-            </div>
-          </div>
-          <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger px-3" style="border-radius: 20px; font-size: 0.78rem; font-weight: 600;">
-            <i class="bi bi-box-arrow-right me-1"></i> Sign Out
-          </a>
+        {% block topbar_actions %}{% endblock %}
       </div>
     </header>
 

@@ -39,19 +39,19 @@
 }
 </style>
 
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold text-dark m-0">Engagements</h4>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-            Each engagement corresponds to one CIRP case / Corporate Debtor
-        </div>
-    </div>
-    <button type="button" class="btn btn-action-primary" data-bs-toggle="modal" data-bs-target="#newEngagementModal">
-        <i class="bi bi-plus-lg me-1"></i> New Engagement
-    </button>
+{% block topbar_title %}Engagements{% endblock %}
+{% block topbar_subtitle %}
+<div class="text-muted" style="font-size: 0.75rem; font-weight: 500; margin-top: 1px;">
+  Manage CIRP cases & Corporate Debtors
 </div>
+{% endblock %}
+{% block topbar_actions %}
+<button type="button" class="btn btn-action-primary py-1 px-3 shadow-sm" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#newEngagementModal">
+  <i class="bi bi-plus-lg me-1"></i> New Engagement
+</button>
+{% endblock %}
 
+{% block content %}
 <div class="classic-dash-card p-0 overflow-hidden">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">

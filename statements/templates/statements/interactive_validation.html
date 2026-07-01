@@ -1,0 +1,949 @@
+{% extends 'statements/base.html' %}
+{% block title %}Interactive Validation - {{ statement.original_filename }}{% endblock %}
+{% block nav_upload_active %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Override default container scroll to make split pane work perfectly inside scrollable stage */
+  .scrollable-stage {
+    height: calc(100vh - 70px) !important;
+    overflow-y: auto !important;
+    padding: 1rem 2rem !important;
+  }
+
+  .premium-back-link {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: color 0.15s ease;
+    margin-bottom: 0.5rem;
+  }
+  .premium-back-link:hover {
+    color: var(--text-main);
+  }
+
+  .enterprise-page-header {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: #0f172a;
+    margin-bottom: 0.2rem;
+  }
+
+  /* Split layout main container */
+  .split-layout-container {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    width: 100%;
+  }
+
+  /* Left Panel: Table listing */
+  .left-workspace {
+    flex: 1 1 0;
+    min-width: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  /* Right Panel: Sticky details and actions */
+  .right-workspace {
+    flex: 0 0 340px;
+    width: 340px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 110px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .right-workspace-content {
+    overflow-y: auto;
+    padding: 1.25rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Financial Statement Data Table Overhaul */
+  .premium-bank-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+  }
+
+  .premium-bank-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .premium-bank-table td {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.8rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+
+  .premium-bank-table tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  /* Row flagging and selections styles */
+  .premium-bank-table tr.flagged-row td {
+    background-color: #fff5f5;
+  }
+  .premium-bank-table tr.flagged-row td:first-child {
+    border-left: 4px solid #dc2626 !important;
+  }
+
+  .premium-bank-table tr.selected-row td {
+    background-color: #eff6ff !important;
+  }
+  .premium-bank-table tr.selected-row td:first-child {
+    border-left: 4px solid #2563eb !important;
+  }
+
+  .premium-bank-table tr.flagged-row.selected-row td {
+    background-color: #fee2e2 !important;
+  }
+  .premium-bank-table tr.flagged-row.selected-row td:first-child {
+    border-left: 4px solid #dc2626 !important;
+  }
+
+  .premium-bank-table tr:hover td {
+    background-color: #f1f5f9;
+  }
+
+  /* Right Panel details card */
+  .right-panel-header {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .sidebar-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    margin-bottom: 0.75rem;
+    margin-top: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.25rem;
+  }
+
+  /* Table info metrics inside sidebar */
+  .sidebar-info-table {
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+  .sidebar-info-table th {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.4rem 0;
+    width: 40%;
+  }
+  .sidebar-info-table td {
+    font-size: 0.8rem;
+    color: #1e293b;
+    padding: 0.4rem 0;
+    font-weight: 500;
+  }
+
+  /* Custom Clean Alert Badges */
+  .badge-severity {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+    display: inline-block;
+  }
+  .bg-sev-critical { color: #dc2626; background-color: #fef2f2; }
+  .bg-sev-high { color: #d97706; background-color: #fffbeb; }
+  .bg-sev-medium { color: #0284c7; background-color: #f0f9ff; }
+  .bg-sev-info { color: #64748b; background-color: #f8fafc; }
+  .bg-sev-resolved { color: #16a34a; background-color: #f0fdf4; }
+
+  .issue-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background-color: #ffffff;
+    margin-bottom: 0.75rem;
+  }
+
+  .form-control-custom {
+    border-radius: 6px 0 0 6px !important;
+    border: 1px solid #cbd5e1;
+    font-size: 0.82rem;
+    padding: 0.45rem 0.6rem;
+  }
+  .form-control-custom:focus {
+    border-color: #94a3b8;
+    box-shadow: none;
+  }
+  .btn-save-inline {
+    background-color: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 0 6px 6px 0 !important;
+    padding: 0 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .btn-save-inline:hover {
+    background-color: #1e293b;
+  }
+
+  .btn-resolve-custom {
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 4px 10px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #334155;
+    transition: all 0.2s;
+  }
+  .btn-resolve-custom:hover {
+    background-color: #f0fdf4;
+    border-color: #16a34a;
+    color: #16a34a;
+  }
+  
+  .statement-issue-banner {
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Navigation Sidebar Issues List */
+  .issue-nav-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.75rem;
+  }
+
+  .issue-nav-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    background-color: #ffffff;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .issue-nav-card:hover {
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+  }
+  .issue-nav-card.active-issue-card {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+    box-shadow: 0 0 0 1px #dc2626;
+  }
+
+  /* Live toast notification */
+  .custom-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #0f172a;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  }
+  .custom-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  .custom-toast-success {
+    border-left: 4px solid #10b981;
+  }
+  .custom-toast-error {
+    border-left: 4px solid #ef4444;
+  }
+</style>
+{% endblock %}
+
+{% block topbar_back_btn %}
+<a href="{% url 'cleaning_issues' statement.id %}" class="btn btn-light btn-sm me-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; transition: all 0.2s;" title="Back to Issues List">
+  <i class="bi bi-arrow-left"></i>
+</a>
+{% endblock %}
+
+{% block topbar_title %}Clean & Validate Data Workspace{% endblock %}
+
+{% block topbar_subtitle %}
+<div class="text-muted" style="font-size: 0.75rem; font-weight: 500; margin-top: 1px;">
+  {{ statement.original_filename }} &mdash; <strong class="text-danger">{{ unresolved_count }} unresolved issues</strong>
+</div>
+{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'cleaning_dashboard' statement.id %}" class="btn btn-sm btn-outline-secondary px-3 shadow-sm" style="border-radius: 20px; font-weight: 600; font-size: 0.8rem;">
+  View Quality Dashboard
+</a>
+{% endblock %}
+
+{% block content %}
+
+
+<!-- 1. Statement-Level Issues Banner (Placed at the very top, full width, to avoid confusion) -->
+{% if statement_issues %}
+<div id="statement-issues-banner" class="alert alert-warning d-flex flex-column gap-2 mb-3" style="border-radius: 10px; border-left: 5px solid #d97706; background-color: #fffbeb; max-height: calc(100vh - 120px); overflow-y: auto;">
+  <div class="fw-bold text-warning-emphasis"><i class="bi bi-exclamation-triangle-fill me-2"></i>Statement-Level Issues Detected</div>
+  <p class="text-secondary small mb-1" style="max-width: 900px; line-height: 1.4;">
+    <strong>Note:</strong> These validation issues (like date gaps) apply to the <em>entire bank statement</em> overall (e.g. missing periods of data between dates) rather than a single specific transaction row. You can review and clear them here.
+  </p>
+  <div class="row m-0 g-2 mt-1">
+    {% for issue in statement_issues %}
+    <div class="col-12 col-md-6">
+      <div class="bg-white border rounded p-2 d-flex justify-content-between align-items-center shadow-sm" style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='#ffffff'" onclick="scrollToDate('{{ issue.message|escapejs }}')">
+        <div style="flex-grow: 1;">
+          <span class="badge bg-warning text-dark me-2">{{ issue.code }}</span>
+          <span class="small text-dark">{{ issue.message }}</span>
+        </div>
+        <form method="post" class="m-0 ajax-form ms-2" data-action="resolve_statement" onclick="event.stopPropagation();">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="resolve_issue">
+          <input type="hidden" name="issue_id" value="{{ issue.id }}">
+          {% if selected_transaction %}
+          <input type="hidden" name="selected_txn" value="{{ selected_transaction.id }}">
+          {% endif %}
+          <button type="submit" class="btn btn-sm btn-outline-success py-1 px-3" style="font-size: 0.72rem; font-weight: 600; border-radius: 6px;">Clear</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="split-layout-container">
+  <!-- Left Panel: Statement Transactions Table -->
+  <div class="left-workspace">
+    <div class="table-responsive">
+      <table class="premium-bank-table">
+        <thead>
+          <tr>
+            <th style="width: 8%;">Row</th>
+            <th style="width: 15%;">Date</th>
+            <th style="width: 35%;">Narration</th>
+            <th style="width: 14%; text-align: right;">Debit</th>
+            <th style="width: 14%; text-align: right;">Credit</th>
+            <th style="width: 14%; text-align: right;">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in txns %}
+          <tr class="{% if t.id in flagged_txn_ids %}flagged-row{% endif %} {% if selected_transaction and selected_transaction.id == t.id %}selected-row{% endif %}"
+              id="txn_row_{{ t.id }}"
+              onclick="selectTransaction('{{ t.id }}')">
+            <td>
+              {% if t.id in flagged_txn_ids %}
+              <i class="bi bi-exclamation-circle-fill text-danger me-1" title="Validation Issue Flagged"></i>
+              {% endif %}
+              {{ t.source_row }}
+            </td>
+            <td>{{ t.txn_date|date:"d M Y" }}</td>
+            <td title="{{ t.narration_raw }}">{{ t.narration_raw }}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums;" class="{% if t.debit %}text-danger fw-medium{% endif %}">
+              {% if t.debit %}₹{{ t.debit|floatformat:2 }}{% else %}&mdash;{% endif %}
+            </td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums;" class="{% if t.credit %}text-success fw-medium{% endif %}">
+              {% if t.credit %}₹{{ t.credit|floatformat:2 }}{% else %}&mdash;{% endif %}
+            </td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: 500;">
+              {% if t.balance %}₹{{ t.balance|floatformat:2 }}{% else %}&mdash;{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right Panel: Selection Details & Issues -->
+  <div class="right-workspace">
+    <div class="right-panel-header d-flex justify-content-between align-items-center">
+      <span>Unresolved Validation Issues</span>
+      <button class="btn btn-sm py-1 px-2 d-flex align-items-center gap-1" style="font-size: 0.72rem; font-weight: 600; border: 1px solid #cbd5e1; color: #475569; background-color: #ffffff; border-radius: 6px; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'; this.style.borderColor='#94a3b8'; this.style.color='#0f172a';" onmouseout="this.style.backgroundColor='#ffffff'; this.style.borderColor='#cbd5e1'; this.style.color='#475569';" data-bs-toggle="offcanvas" data-bs-target="#transactionDetailsSidebar" aria-controls="transactionDetailsSidebar">
+        <i class="bi bi-layout-sidebar-reverse"></i> Details
+      </button>
+    </div>
+    
+    <div class="right-workspace-content" style="padding-top: 0.75rem;">
+      <!-- 2. Sidebar Validation Issues Navigation List -->
+      <div class="issue-nav-list">
+        {% for issue in unresolved_issues %}
+          <div class="issue-nav-card {% if selected_transaction and selected_transaction.id == issue.transaction_id %}active-issue-card{% endif %}"
+               data-issue-id="{{ issue.id }}"
+               data-txn-id="{{ issue.transaction_id|default:'STATEMENT' }}"
+               onclick="selectTransaction('{{ issue.transaction_id|default:'STATEMENT' }}', '{{ issue.id }}')">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              {% if issue.severity == "CRITICAL" %}<span class="badge-severity bg-sev-critical">{% if issue.transaction_id %}Row #{{ issue.txn_row }}{% else %}STATEMENT{% endif %} &middot; CRITICAL</span>
+              {% elif issue.severity == "HIGH" %}<span class="badge-severity bg-sev-high">{% if issue.transaction_id %}Row #{{ issue.txn_row }}{% else %}STATEMENT{% endif %} &middot; HIGH</span>
+              {% elif issue.severity == "MEDIUM" %}<span class="badge-severity bg-sev-medium">{% if issue.transaction_id %}Row #{{ issue.txn_row }}{% else %}STATEMENT{% endif %} &middot; MEDIUM</span>
+              {% else %}<span class="badge-severity bg-sev-info">{% if issue.transaction_id %}Row #{{ issue.txn_row }}{% else %}STATEMENT{% endif %} &middot; INFO</span>{% endif %}
+              <code class="font-monospace text-secondary" style="font-size: 0.65rem; background-color: #f1f5f9; padding: 1px 4px; border-radius: 3px;">{{ issue.code }}</code>
+            </div>
+            <div class="small text-dark fw-medium" style="font-size: 0.78rem; line-height: 1.3;">{{ issue.message }}</div>
+          </div>
+        {% empty %}
+          <div class="text-muted small text-center py-3">No unresolved transaction issues.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Offcanvas Sidebar for Transaction Details -->
+<div class="offcanvas offcanvas-end shadow-sm" tabindex="-1" id="transactionDetailsSidebar" aria-labelledby="transactionDetailsSidebarLabel" style="width: 420px; border-left: 1px solid #e2e8f0;">
+  <div class="offcanvas-header bg-light border-bottom py-3">
+    <h5 class="offcanvas-title fw-bold" id="transactionDetailsSidebarLabel" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a;">
+      <i class="bi bi-card-list me-2 text-secondary"></i>Transaction Details
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body" style="background-color: #ffffff;">
+    <!-- 3. Selected Transaction Details & Overrides (Rendered dynamically in-place) -->
+    <div id="details-content-area">
+      <!-- Rendered dynamically by selectTransaction() -->
+    </div>
+  </div>
+</div>
+
+<script id="txns-data" type="application/json">
+  {
+    {% for t in txns %}
+      "{{ t.id }}": {
+        "id": "{{ t.id }}",
+        "row": "{{ t.source_row }}",
+        "date": "{{ t.txn_date|date:'d M Y' }}",
+        "mode": "{{ t.txn_mode|default:''|escapejs }}",
+        "counterparty": "{{ t.counterparty_name|default:'Unidentified / Suspense'|escapejs }}",
+        "reference": "{{ t.reference|default:''|escapejs }}",
+        "debit": "{{ t.debit|default:'' }}",
+        "credit": "{{ t.credit|default:'' }}",
+        "balance": "{{ t.balance|default:'' }}",
+        "narration_raw": "{{ t.narration_raw|escapejs }}"
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  }
+</script>
+
+<script id="issues-data" type="application/json">
+  {
+    {% for t_id, issues in txn_issues_map.items %}
+      "{{ t_id }}": [
+        {% for issue in issues %}
+          {
+            "id": "{{ issue.id }}",
+            "code": "{{ issue.code|escapejs }}",
+            "severity": "{{ issue.severity|escapejs }}",
+            "message": "{{ issue.message|escapejs }}"
+          }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]{% if not forloop.last or statement_issues %},{% endif %}
+    {% endfor %}
+    {% if statement_issues %}
+      "STATEMENT": [
+        {% for issue in statement_issues %}
+          {
+            "id": "{{ issue.id }}",
+            "code": "{{ issue.code|escapejs }}",
+            "severity": "{{ issue.severity|escapejs }}",
+            "message": "{{ issue.message|escapejs }}"
+          }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]
+    {% endif %}
+  }
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let txnsData = {};
+  let issuesData = {};
+
+  // Escape HTML helper
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+  }
+
+  function scrollToDate(message) {
+      const match = message.match(/between (\d{4}-\d{2}-\d{2}) and (\d{4}-\d{2}-\d{2})/);
+      if (match) {
+          const startDateStr = match[1];
+          const d = new Date(startDateStr);
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const day = d.getDate().toString().padStart(2, '0');
+          const formattedDate = `${day} ${months[d.getMonth()]} ${d.getFullYear()}`;
+          
+          let targetTxnId = null;
+          for (const [id, txn] of Object.entries(txnsData)) {
+              if (txn.date === formattedDate) {
+                  targetTxnId = id;
+                  break;
+              }
+          }
+          if (targetTxnId) {
+              selectTransaction(targetTxnId);
+          } else {
+              showToast('error', 'Could not find transaction with date ' + formattedDate);
+          }
+      }
+  }
+
+  // Toast Notification helper
+  function showToast(type, message) {
+      const existing = document.getElementById('app-custom-toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.id = 'app-custom-toast';
+      toast.className = `custom-toast custom-toast-${type}`;
+      toast.innerHTML = `
+          <i class="bi ${type === 'success' ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle-fill text-danger'}"></i>
+          <span>${message}</span>
+      `;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.classList.add('show'), 10);
+      
+      setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+      }, 3500);
+  }
+
+  // Transaction selection logic without page refresh
+  function selectTransaction(txnId, issueId = null) {
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+
+      // Helper function to scroll an element into the center of a container
+      function scrollElementIntoView(el, container) {
+          if (!el || !container) return;
+          const elRect = el.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          
+          if (elRect.top < containerRect.top || elRect.bottom > containerRect.bottom) {
+              const scrollOffset = elRect.top - containerRect.top - (container.clientHeight / 2) + (el.clientHeight / 2);
+              container.scrollBy({ top: scrollOffset, behavior: 'smooth' });
+          }
+      }
+
+      // 1. Update left hand row selection highlight
+      document.querySelectorAll('.premium-bank-table tbody tr').forEach(r => r.classList.remove('selected-row'));
+      if (txnId !== 'STATEMENT') {
+          const row = document.getElementById('txn_row_' + txnId);
+          if (row) {
+              row.classList.add('selected-row');
+              const container = document.querySelector('.scrollable-stage');
+              scrollElementIntoView(row, container);
+          }
+      }
+
+      // 2. Update unresolved issue card selection highlight
+      document.querySelectorAll('.issue-nav-card').forEach(card => card.classList.remove('active-issue-card'));
+      if (issueId) {
+          const card = document.querySelector(`.issue-nav-card[data-issue-id="${issueId}"]`);
+          if (card) {
+              card.classList.add('active-issue-card');
+              const listContainer = document.querySelector('.issue-nav-list');
+              scrollElementIntoView(card, listContainer);
+          }
+      } else {
+          // Highlight first issue card matching this transaction (if any)
+          const firstCard = document.querySelector(`.issue-nav-card[data-txn-id="${txnId}"]`);
+          if (firstCard) {
+              firstCard.classList.add('active-issue-card');
+              const listContainer = document.querySelector('.issue-nav-list');
+              scrollElementIntoView(firstCard, listContainer);
+          }
+      }
+
+      // 3. Update right details panel contents
+      if (txnId === 'STATEMENT') {
+          const issues = issuesData['STATEMENT'] || [];
+          let issuesHtml = '';
+          issues.forEach(issue => {
+              let sevBadge = '';
+              if (issue.severity === 'CRITICAL') sevBadge = '<span class="badge-severity bg-sev-critical">CRITICAL</span>';
+              else if (issue.severity === 'HIGH') sevBadge = '<span class="badge-severity bg-sev-high">HIGH</span>';
+              else if (issue.severity === 'MEDIUM') sevBadge = '<span class="badge-severity bg-sev-medium">MEDIUM</span>';
+              else sevBadge = '<span class="badge-severity bg-sev-info">INFO</span>';
+
+              issuesHtml += `
+                <div class="issue-box ${issueId === issue.id ? 'border-danger bg-light' : ''}" id="issue_box_${issue.id}">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div>${sevBadge}</div>
+                    <code class="font-monospace text-secondary small" style="background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${issue.code}</code>
+                  </div>
+                  <p class="text-dark small mb-3" style="line-height: 1.4; font-weight: 500;">${issue.message}</p>
+                  <div class="d-flex justify-content-end align-items-center pt-2 border-top border-light">
+                    <form method="post" class="m-0 ajax-form" data-action="resolve_statement">
+                      <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                      <input type="hidden" name="action" value="resolve_issue">
+                      <input type="hidden" name="issue_id" value="${issue.id}">
+                      <input type="hidden" name="selected_txn" value="STATEMENT">
+                      <button class="btn-resolve-custom" type="submit">Resolve Issue</button>
+                    </form>
+                  </div>
+                </div>
+              `;
+          });
+          
+          document.getElementById('details-content-area').innerHTML = `
+            <div class="sidebar-section-title" style="margin-top: 0.5rem;">Statement-Level Issues</div>
+            <div class="alert alert-warning mb-3 small">
+              These issues apply to the entire statement and are not linked to a single transaction row.
+            </div>
+            ${issuesHtml}
+          `;
+          bindAjaxFormHandlers();
+          return;
+      }
+
+      const txn = txnsData[txnId];
+      const issues = issuesData[txnId] || [];
+
+      if (!txn) {
+          document.getElementById('details-content-area').innerHTML = `
+              <div class="p-5 text-center text-muted">
+                <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+                Select a transaction row from the left panel to inspect validation flags and override data parameters.
+              </div>
+          `;
+          return;
+      }
+
+      const debitText = txn.debit ? `₹${parseFloat(txn.debit).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '&mdash;';
+      const creditText = txn.credit ? `₹${parseFloat(txn.credit).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '&mdash;';
+      const balanceText = txn.balance ? `₹${parseFloat(txn.balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '&mdash;';
+
+      const debitVal = txn.debit || '';
+      const narrationVal = txn.narration_raw || '';
+      const modeBadge = txn.mode ? `<span class="badge bg-light text-dark border font-monospace" style="font-size:0.7rem; padding: 2px 6px;">${txn.mode}</span>` : '&mdash;';
+
+      let issuesHtml = '';
+      if (issues.length === 0) {
+          issuesHtml = `
+              <div class="p-3 text-center border rounded bg-light mb-3">
+                <i class="bi bi-shield-check text-success fs-4 d-block mb-1"></i>
+                <span class="text-success small fw-medium">No active validation flags for this transaction.</span>
+              </div>
+          `;
+      } else {
+          issues.forEach(issue => {
+              let sevBadge = '';
+              if (issue.severity === 'CRITICAL') {
+                  sevBadge = '<span class="badge-severity bg-sev-critical">CRITICAL</span>';
+              } else if (issue.severity === 'HIGH') {
+                  sevBadge = '<span class="badge-severity bg-sev-high">HIGH</span>';
+              } else if (issue.severity === 'MEDIUM') {
+                  sevBadge = '<span class="badge-severity bg-sev-medium">MEDIUM</span>';
+              } else {
+                  sevBadge = '<span class="badge-severity bg-sev-info">INFO</span>';
+              }
+
+              issuesHtml += `
+                <div class="issue-box" id="issue_box_${issue.id}">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div>${sevBadge}</div>
+                    <code class="font-monospace text-secondary small" style="background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${issue.code}</code>
+                  </div>
+                  <p class="text-dark small mb-3" style="line-height: 1.4; font-weight: 500;">${issue.message}</p>
+                  <div class="d-flex justify-content-end align-items-center pt-2 border-top border-light">
+                    <form method="post" class="m-0 ajax-form" data-action="resolve">
+                      <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                      <input type="hidden" name="action" value="resolve_issue">
+                      <input type="hidden" name="issue_id" value="${issue.id}">
+                      <input type="hidden" name="selected_txn" value="${txnId}">
+                      <button class="btn-resolve-custom" type="submit">Resolve Issue</button>
+                    </form>
+                  </div>
+                </div>
+              `;
+          });
+      }
+
+      const htmlContent = `
+          <div class="sidebar-section-title" style="margin-top: 0.5rem;">
+            Selected Transaction Details (Row #${txn.row})
+          </div>
+          
+          <table class="sidebar-info-table">
+            <tbody>
+              <tr>
+                <th>Booking Date</th>
+                <td class="font-monospace">${txn.date}</td>
+              </tr>
+              <tr>
+                <th>Channel Mode</th>
+                <td>${modeBadge}</td>
+              </tr>
+              <tr>
+                <th>Counterparty</th>
+                <td class="fw-bold">${txn.counterparty}</td>
+              </tr>
+              <tr>
+                <th>Reference Tag</th>
+                <td class="font-monospace small text-secondary">${txn.reference || '&mdash;'}</td>
+              </tr>
+              <tr>
+                <th>Outbound (Debit)</th>
+                <td class="${txn.debit ? 'text-danger fw-bold' : ''}">${debitText}</td>
+              </tr>
+              <tr>
+                <th>Inbound (Credit)</th>
+                <td class="${txn.credit ? 'text-success fw-bold' : ''}">${creditText}</td>
+              </tr>
+              <tr>
+                <th>Resulting Balance</th>
+                <td class="font-monospace text-secondary fw-semibold">${balanceText}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="sidebar-section-title">Active Flags (<span id="flags-count-badge">${issues.length}</span>)</div>
+          <div id="txn-flags-container">
+            ${issuesHtml}
+          </div>
+
+          <div class="sidebar-section-title">Manual Data Overrides</div>
+          
+          <form method="post" class="mb-3 ajax-form" data-action="override" data-field="narration">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <input type="hidden" name="action" value="update_transaction">
+            <input type="hidden" name="transaction_id" value="${txn.id}">
+            <input type="hidden" name="field" value="narration">
+            <label class="form-label text-muted small fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.03em;">Override Narration</label>
+            <div class="input-group">
+              <input type="text" name="value" class="form-control form-control-custom font-monospace" value="${escapeHtml(narrationVal)}">
+              <button class="btn btn-save-inline" type="submit">Save</button>
+            </div>
+          </form>
+
+          <form method="post" class="mb-0 ajax-form" data-action="override" data-field="debit">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <input type="hidden" name="action" value="update_transaction">
+            <input type="hidden" name="transaction_id" value="${txn.id}">
+            <input type="hidden" name="field" value="debit">
+            <label class="form-label text-muted small fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.03em;">Override Debit Amount</label>
+            <div class="input-group">
+              <input type="number" step="0.01" name="value" class="form-control form-control-custom font-monospace" value="${debitVal}">
+              <button class="btn btn-save-inline" type="submit">Save</button>
+            </div>
+          </form>
+      `;
+
+      document.getElementById('details-content-area').innerHTML = htmlContent;
+      bindAjaxFormHandlers();
+  }
+
+  // Bind AJAX listeners to newly rendered forms
+  function bindAjaxFormHandlers() {
+      document.querySelectorAll('.ajax-form').forEach(form => {
+          if (form.dataset.ajaxBound) return;
+          form.dataset.ajaxBound = "true";
+
+          form.addEventListener('submit', function(e) {
+              e.preventDefault();
+              const action = form.dataset.action;
+              const formData = new FormData(form);
+
+              const submitBtn = form.querySelector('button[type="submit"]');
+              const originalText = submitBtn ? submitBtn.innerHTML : '';
+              if (submitBtn) {
+                  submitBtn.disabled = true;
+                  submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+              }
+
+              fetch('', {
+                  method: 'POST',
+                  body: formData,
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                  }
+              })
+              .then(response => response.json())
+              .then(data => {
+                  if (data.status === 'success') {
+                      showToast('success', data.message);
+                      
+                      if (action === 'resolve') {
+                          const txnId = formData.get('selected_txn');
+                          const issueId = formData.get('issue_id');
+                          if (issuesData[txnId]) {
+                              issuesData[txnId] = issuesData[txnId].filter(i => i.id !== issueId);
+                          }
+                          const card = document.querySelector(`.issue-nav-card[data-issue-id="${issueId}"]`);
+                          if (card) card.remove();
+
+                          // Update unresolved count
+                          const countBadge = document.querySelector('.text-danger');
+                          if (countBadge) {
+                              const currentCount = parseInt(countBadge.innerText);
+                              if (!isNaN(currentCount)) {
+                                  countBadge.innerText = `${currentCount - 1} unresolved issues`;
+                              }
+                          }
+
+                          // If no issues left, remove warning icons
+                          if (!issuesData[txnId] || issuesData[txnId].length === 0) {
+                              const warningIcon = document.querySelector(`#txn_row_${txnId} .bi-exclamation-circle-fill`);
+                              if (warningIcon) warningIcon.remove();
+                              const row = document.getElementById('txn_row_' + txnId);
+                              if (row) row.classList.remove('flagged-row');
+                          }
+
+                          selectTransaction(txnId);
+                      } else if (action === 'override') {
+                          const txnId = formData.get('transaction_id');
+                          const field = formData.get('field');
+                          const val = formData.get('value');
+
+                          if (txnsData[txnId]) {
+                              if (field === 'narration') {
+                                  txnsData[txnId].narration_raw = val;
+                                  const cell = document.querySelector(`#txn_row_${txnId} td:nth-child(3)`);
+                                  if (cell) {
+                                      cell.innerText = val;
+                                      cell.title = val;
+                                  }
+                              } else if (field === 'debit') {
+                                  txnsData[txnId].debit = val;
+                                  const cell = document.querySelector(`#txn_row_${txnId} td:nth-child(4)`);
+                                  if (cell) {
+                                      cell.innerText = val ? `₹${parseFloat(val).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—';
+                                      cell.className = val ? 'text-danger fw-medium' : '';
+                                  }
+                              }
+                          }
+                          selectTransaction(txnId);
+                      } else if (action === 'resolve_statement') {
+                          const issueId = formData.get('issue_id');
+                          const issueCol = form.closest('.col-12');
+                          if (issueCol) {
+                              issueCol.remove();
+                          }
+                          const container = document.getElementById('statement-issues-banner');
+                          if (container && container.querySelectorAll('.col-12').length === 0) {
+                              container.remove();
+                          }
+                          const countBadge = document.querySelector('.text-danger');
+                          if (countBadge) {
+                              const currentCount = parseInt(countBadge.innerText);
+                              if (!isNaN(currentCount)) {
+                                  countBadge.innerText = `${currentCount - 1} unresolved issues`;
+                              }
+                          }
+                      }
+                  } else {
+                      showToast('error', data.message || 'Action failed');
+                  }
+              })
+              .catch(err => {
+                  console.error(err);
+                  showToast('error', 'A network error occurred.');
+              })
+              .finally(() => {
+                  if (submitBtn) {
+                      submitBtn.disabled = false;
+                      submitBtn.innerHTML = originalText;
+                  }
+              });
+          });
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // Parse the JSON script payloads
+    try {
+        txnsData = JSON.parse(document.getElementById('txns-data').textContent);
+        issuesData = JSON.parse(document.getElementById('issues-data').textContent);
+    } catch (e) {
+        console.error("Failed to parse data tags", e);
+    }
+
+    // Set up initial selection state
+    {% if selected_transaction %}
+        const initialTxnId = "{{ selected_transaction.id }}";
+        let matchedIssueId = null;
+        {% for issue in selected_issues %}
+            {% if forloop.first %}
+                matchedIssueId = "{{ issue.id }}";
+            {% endif %}
+        {% endfor %}
+        selectTransaction(initialTxnId, matchedIssueId);
+    {% else %}
+        const firstTxnKey = Object.keys(txnsData)[0];
+        if (firstTxnKey) {
+            selectTransaction(firstTxnKey);
+        }
+    {% endif %}
+
+    // Bind any static AJAX forms already on the page (like statement level issues)
+    bindAjaxFormHandlers();
+  });
+</script>
+{% endblock %}

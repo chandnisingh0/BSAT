@@ -1,6 +1,20 @@
 {% extends 'statements/base.html' %}
 {% block title %}{{ counterparty.name }} - {{ statement.original_filename }}{% endblock %}
 
+{% block topbar_back_btn %}
+<a href="{% url 'counterparty_ledger' statement.id %}" class="btn btn-light btn-sm me-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; transition: all 0.2s;" title="Back to Ledger">
+  <i class="bi bi-arrow-left"></i>
+</a>
+{% endblock %}
+
+{% block topbar_title %}{{ counterparty.name }}{% endblock %}
+
+{% block topbar_subtitle %}
+<div class="text-muted" style="font-size: 0.75rem; font-weight: 500; margin-top: 1px;">
+  <span class="fw-semibold text-secondary">Source File:</span> {{ statement.original_filename }}
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
   body {
@@ -181,16 +195,7 @@
   }
 </style>
 
-<div class="mb-4">
-  <a href="{% url 'counterparty_ledger' statement.id %}" class="btn btn-back-custom text-decoration-none d-inline-flex align-items-center gap-2">
-    ← Back to Ledger
-  </a>
-</div>
 
-<div class="mb-4">
-  <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem;">{{ counterparty.name }}</h2>
-  <p class="text-muted small mb-0"><span class="fw-semibold text-secondary">Source File:</span> {{ statement.original_filename }}</p>
-</div>
 
 <div class="row g-3 mb-3">
   <div class="col-md-3">

@@ -17,6 +17,7 @@ urlpatterns = [
     # ===== CLEANING & VALIDATION =====
     path('statement/<int:statement_id>/clean/', views.cleaning_dashboard_view, name='cleaning_dashboard'),
     path('statement/<int:statement_id>/clean/issues/', views.cleaning_issues_view, name='cleaning_issues'),
+    path('statement/<int:statement_id>/clean/interactive/', views.interactive_validation_view, name='interactive_validation'),
     path('statement/<int:statement_id>/clean/transaction/<int:transaction_id>/', views.cleaning_transaction_detail_view, name='cleaning_transaction_detail'),
     path('statement/<int:statement_id>/clean/resolve/<str:issue_id>/', views.resolve_issue_view, name='resolve_issue'),
     path('statement/<int:statement_id>/clean/export/', views.export_cleaned_data_view, name='export_cleaned'),

@@ -283,7 +283,7 @@ class Statement(models.Model):
             'original_value': str(original),
             'corrected_value': str(corrected),
             'corrected_by_user_id': user.id,
-            'corrected_by_username': user.username,
+            'corrected_by_username': getattr(user, 'username', user.email),
             'timestamp': timezone.now().isoformat()
         }
         

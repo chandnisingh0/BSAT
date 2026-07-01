@@ -232,6 +232,14 @@ def cleaning_dashboard_view(request, statement_id):
     high_issues = [i for i in unresolved_issues if i['severity'] == 'HIGH']
     medium_issues = [i for i in unresolved_issues if i['severity'] == 'MEDIUM']
     
+    # Dynamically update rating based on remaining unresolved issues
+    engine = ValidationEngine(statement)
+    engine.issues = unresolved_issues
+    rating = engine.get_reliability_rating()
+    if statement.validation_rating != rating:
+        statement.validation_rating = rating
+        statement.save(update_fields=['validation_rating'])
+    
     return render(request, 'statements/cleaning_dashboard.html', {
         'statement': statement,
         'critical_count': len(critical_issues),
@@ -268,6 +276,178 @@ def cleaning_issues_view(request, statement_id):
         'issues': issues,
         'severity_filter': severity_filter,
         'resolution_filter': resolution_filter,
+    })
+
+
+@login_required
+def interactive_validation_view(request, statement_id):
+    """Interactive split-screen validation issues dashboard view."""
+    statement = get_object_or_404(Statement, id=statement_id)
+    
+    # Handle POST requests (actions from the interactive page)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # 1. Action: Resolve a specific issue
+        if action == 'resolve_issue':
+            issue_id = request.POST.get('issue_id')
+            analyst_action = request.POST.get('analyst_action', 'acknowledged')
+            issues = statement.validation_issues or []
+            matched = False
+            for issue in issues:
+                if issue.get('id') == issue_id:
+                    issue['analyst_action'] = analyst_action
+                    issue['analyst_user_id'] = request.user.id
+                    issue['resolved_at'] = timezone.now().isoformat()
+                    issue['resolved'] = True
+                    matched = True
+                    break
+            if matched:
+                statement.validation_issues = issues
+                # Recalculate counts
+                unresolved = [i for i in issues if not i.get('resolved', False)]
+                statement.validation_issues_count = len(unresolved)
+                statement.validation_critical_count = sum(1 for i in unresolved if i.get('severity') == 'CRITICAL')
+                statement.validation_high_count = sum(1 for i in unresolved if i.get('severity') == 'HIGH')
+                
+                # Recalculate rating
+                engine = ValidationEngine(statement)
+                engine.issues = unresolved
+                rating = engine.get_reliability_rating()
+                statement.validation_rating = rating
+                statement.save()
+                
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': 'Issue marked as resolved ✅',
+                        'issue_id': issue_id,
+                        'unresolved_count': len(unresolved)
+                    })
+                messages.success(request, 'Issue marked as resolved ✅')
+            else:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': 'Issue not found'})
+                messages.error(request, 'Issue not found')
+            
+            # Redirect back to the same view with query params
+            selected_txn = request.POST.get('selected_txn', '')
+            url = f"/statement/{statement_id}/clean/interactive/"
+            if selected_txn:
+                url += f"?selected_txn={selected_txn}"
+            return redirect(url)
+            
+        # 2. Action: Override fields on the selected transaction
+        elif action == 'update_transaction':
+            txn_id = request.POST.get('transaction_id')
+            transaction = get_object_or_404(Transaction, id=txn_id, statement=statement)
+            field = request.POST.get('field')
+            new_value = request.POST.get('value')
+            
+            if field == 'narration':
+                original = transaction.narration_raw
+                transaction.narration_raw = new_value
+                transaction.save()
+                statement.log_correction('narration', original, new_value, request.user)
+                
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': 'Transaction narration overridden',
+                        'field': 'narration',
+                        'value': new_value
+                    })
+                messages.success(request, 'Transaction narration overridden')
+                
+            elif field == 'debit':
+                original = transaction.debit
+                if new_value.strip() == '':
+                    transaction.debit = None
+                    final_val = None
+                else:
+                    transaction.debit = new_value
+                    final_val = float(new_value)
+                transaction.save()
+                statement.log_correction('debit', original, new_value, request.user)
+                
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': 'Transaction debit overridden',
+                        'field': 'debit',
+                        'value': final_val
+                    })
+                messages.success(request, 'Transaction debit overridden')
+            
+            # Redirect back to the same view with query params
+            url = f"/statement/{statement_id}/clean/interactive/?selected_txn={txn_id}"
+            return redirect(url)
+
+    # GET Request: Render the page
+    # Fetch all transactions ordered by source_row
+    txns = statement.transactions.order_by('source_row')
+    
+    # Get all validation issues
+    all_issues = statement.validation_issues or []
+    
+    # Get unresolved issues
+    unresolved_issues = [i for i in all_issues if not i.get('resolved', False)]
+    
+    # Map transaction ID to its unresolved issues
+    txn_issues_map = {}
+    flagged_txn_ids = set()
+    txns_by_id = {t.id: t for t in txns}
+    for issue in unresolved_issues:
+        t_id = issue.get('transaction_id')
+        if t_id:
+            flagged_txn_ids.add(t_id)
+            if t_id in txns_by_id:
+                issue['txn_row'] = txns_by_id[t_id].source_row
+            if t_id not in txn_issues_map:
+                txn_issues_map[t_id] = []
+            txn_issues_map[t_id].append(issue)
+            
+    # Selected transaction calculation
+    selected_txn_id = request.GET.get('selected_txn')
+    selected_transaction = None
+    if selected_txn_id:
+        try:
+            selected_transaction = statement.transactions.get(id=selected_txn_id)
+        except (Transaction.DoesNotExist, ValueError):
+            pass
+            
+    # Fallback default selected transaction: the first transaction that has an unresolved issue
+    if not selected_transaction:
+        for issue in unresolved_issues:
+            t_id = issue.get('transaction_id')
+            if t_id:
+                try:
+                    selected_transaction = statement.transactions.get(id=t_id)
+                    break
+                except Transaction.DoesNotExist:
+                    pass
+                    
+    # If still no transaction has issues, default to the first transaction of the statement
+    if not selected_transaction and txns.exists():
+        selected_transaction = txns.first()
+        
+    # Get issues for the selected transaction
+    selected_issues = []
+    if selected_transaction:
+        selected_issues = txn_issues_map.get(selected_transaction.id, [])
+        
+    # Extract statement-level issues (e.g. date gaps)
+    statement_issues = [i for i in unresolved_issues if not i.get('transaction_id')]
+        
+    return render(request, 'statements/interactive_validation.html', {
+        'statement': statement,
+        'txns': txns,
+        'flagged_txn_ids': flagged_txn_ids,
+        'selected_transaction': selected_transaction,
+        'selected_issues': selected_issues,
+        'statement_issues': statement_issues,
+        'unresolved_issues': unresolved_issues,
+        'unresolved_count': len(unresolved_issues),
     })
 
 

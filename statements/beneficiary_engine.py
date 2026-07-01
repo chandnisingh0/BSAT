@@ -186,8 +186,8 @@ class BeneficiaryEngine:
             return None
             
         ex_re = re.compile('|'.join(self.EXCLUSION_KEYWORDS), re.IGNORECASE)
-        # Regex to remove reference numbers (7+ digits), IFSC codes, date strings
-        ref_re = re.compile(r'\b\d{7,}\b|\b[A-Z]{4}0[A-Z0-9]{6}\b|\b\d{2}-\d{2}-\d{4}\b', re.IGNORECASE)
+        # Regex to remove reference numbers (5+ digits), IFSC codes, date strings
+        ref_re = re.compile(r'\b\d{5,}\b|\b[A-Z]{4}0[A-Z0-9]{6}\b|\b\d{2}-\d{2}-\d{4}\b', re.IGNORECASE)
 
         # Split by strong delimiters (/ or : or hyphen-with-spaces or multiple spaces)
         segments = re.split(r'/|:| - | -|  +', narration)
@@ -200,26 +200,44 @@ class BeneficiaryEngine:
             seg_clean = ex_re.sub(' ', seg)
             seg_clean = ref_re.sub(' ', seg_clean)
             seg_clean = re.sub(r'[\-\.]+', ' ', seg_clean)
+
+            # Remove ANY numeric token — plain, comma-grouped, or decimal
+            # e.g. "10,10,000", "1234", "12.50" — none of these are ever
+            # part of a real beneficiary name.
+            seg_clean = re.sub(r'\b[\d,\.]*\d[\d,\.]*\b', ' ', seg_clean)
+
+            # Strip mixed alphanumeric tokens (e.g. "SRCB024111362874", "SAA34")
+            # These are reference/account codes, not name fragments.
+            seg_clean = re.sub(r'\b[A-Z]{1,6}\d+[A-Z0-9]*\b', ' ', seg_clean)
+
             seg_clean = re.sub(r'\s+', ' ', seg_clean).strip()
-            
-            if len(seg_clean) > 3 and not seg_clean.isdigit():
+
+            # Early validation: only keep segments that look like real names.
+            # This prevents junk tokens from outscoring valid names in the
+            # scoring phase (e.g. "SRCB024111362874" is 16 chars and would
+            # beat "NIRMAL MA" on pure length if not filtered here).
+            if len(seg_clean) > 3 and not seg_clean.isdigit() and self._is_valid_beneficiary_name(seg_clean):
                 candidates.append(seg_clean)
-                
+
         if not candidates:
             return None
-            
+
         # Scoring phase
         def score_candidate(c):
             s = 0
             c_up = c.upper()
             if 'BANK' in c_up: s += 5
             if any(k in c_up for k in ['PVT', 'LTD', 'INDUSTRIES']): s += 5
-            # Bonus if mostly alphabetic
-            if re.fullmatch(r'[A-Za-z\s]+', c): s += 2
-            # Tie breaker: length is the strongest indicator of a full name
+            # Strong bonus if purely alphabetic + multi-word (real person / company name)
+            if re.fullmatch(r'[A-Za-z\s]+', c):
+                s += 4
+                word_count = len(c.split())
+                if word_count >= 2:
+                    s += 3  # multi-word names are much more likely to be real
+            # Tie breaker: length
             s += len(c) * 1.0
             return s
-            
+
         best_candidate = max(candidates, key=score_candidate)
         
         # If the best candidate is still garbage, fallback
@@ -282,11 +300,33 @@ class BeneficiaryEngine:
         if name.isdigit():
             return False
         
-        # Reject pure bank/generic terms (now handled by exclusion keywords regex mostly)
-        # But a basic check ensures we don't return literally "TRANSFER" if it survived
-        words = set(w.upper() for w in re.split(r'\W+', name) if w)
+        # --- NEW: Reject UTR codes / account numbers that look like 'ICICR5202503210031769'
+        # These are long alphanumeric strings with NO spaces and contain many digits.
+        # A real person/company name always has spaces (or is a short abbreviation).
+        digits_in_name = sum(c.isdigit() for c in name)
+        
+        # Reject if digits make up more than 40% of a name longer than 8 chars
+        if len(name) > 8 and digits_in_name / len(name) > 0.40:
+            return False
+        
+        # Reject if the whole name is a single token (no spaces) longer than 20 chars
+        # Real names have spaces; UTR codes / account numbers don't
+        if ' ' not in name.strip() and len(name) > 20:
+            return False
+        
+        # Reject if name ends with a standalone number (e.g. "NLL KALYAN 243320")
+        if re.search(r'\s+\d+$', name):
+            return False
+        
+        # Reject if name is only 1 word and that word contains digits (e.g. "SAA34")
+        words = name.strip().split()
+        if len(words) == 1 and any(c.isdigit() for c in words[0]):
+            return False
+        
+        # Reject pure bank/generic terms
+        word_set = set(w.upper() for w in words if w)
         clean_exclusions = set(k.replace(r'\b', '') for k in self.EXCLUSION_KEYWORDS)
-        if words and all(w in clean_exclusions for w in words):
+        if word_set and all(w in clean_exclusions for w in word_set):
             return False
         
         # Must have at least one letter
